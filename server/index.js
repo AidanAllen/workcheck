@@ -93,7 +93,23 @@ const ID_KEYS = ['eventId', 'event_id', 'id', 'uid', 'orderId', 'order_id', 'tra
 const TIME_KEYS = ['timestamp', 'time', 'ts', 'createdAt', 'created_at', 'eventTime', 'event_time', 'date', 'datetime'];
 
 function toDate(v) {
+  // 字符串形式的数字时间戳先转 number —— `new Date("1700000000")` 是 Invalid Date，
+  // 而很多采集端（PHP / Python / Java 写的居多）恰恰就是把时间戳当字符串塞过来的。
+  //
+  // 认这些形态：负号（1970 年前）、10~13 位整数（秒 / 毫秒）、可选的小数部分
+  // （"1700000000.123" 这种秒带毫秒的最常见，少了这段就会被整条丢掉）。
+  //
+  // 刻意不认 14 位及以上：那是 `YYYYMMDDHHmmss` 的长度，当时间戳算会飞到公元 2612 年。
+  // 已知边缘（不打算治）：10 位的 `YYYYMMDDHH`、12 位的 `YYYYMMDDHHmm` 落在这个区间里，
+  // 会被当成秒/毫秒时间戳算出 1976、2034 这类年份。真要区分只能靠"前四位像不像年份"
+  // 这种启发式，而真实时间戳迟早会涨进那个数值区间 —— 届时启发式反而会误伤。
+  // 采集端把紧凑日期塞进 time 字段的情况极少，收益不抵风险，留着即可。
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (/^-?\d{10,13}(?:\.\d+)?$/.test(s)) v = Number(s);
+  }
   if (typeof v === 'number' && Number.isFinite(v)) {
+    // 1e11 毫秒 ≈ 1973 年，比它小的基本都是秒级时间戳，补个 1000 变成毫秒
     const ms = v < 1e11 ? v * 1000 : v;
     const d = new Date(ms);
     return Number.isNaN(d.getTime()) ? null : d.toISOString();

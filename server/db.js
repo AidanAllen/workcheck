@@ -11,9 +11,13 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Database(path.join(DATA_DIR, 'workcheck.db'));
 db.pragma('journal_mode = WAL');
 
-// 注：早期「数值字段自动识别」功能的 metrics 表已随该功能删掉，
-// 老库里若还留着这张表，初始化时会被 DROP TABLE 清理掉。
+// 早期「数值字段自动识别」功能带的那张 metrics 表已经废弃（功能本身也删了），
+// 但**老库里可能还留着**，所以下面第一句就是清它的。
+// 每次启动都删一遍而不是只迁一次：这张表现在没有任何代码读，留着只会被
+// 误认成脏数据；而 DROP TABLE IF EXISTS 对不存在的表是零开销的空操作。
 db.exec(`
+DROP TABLE IF EXISTS metrics;
+
 CREATE TABLE IF NOT EXISTS sources (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
