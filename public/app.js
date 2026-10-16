@@ -861,7 +861,9 @@ function bindPanel(id, onExpand) {
 async function refreshAll() {
   // 面板收起时不刷新里面的数据：看不见就没必要发请求
   if (opens.checkinPanel) await refreshCheckin();
-  await renderEvents();
+  // 和其它面板一样先判开关。renderEvents 内部还有一道同样的判断作兜底，
+  // 两层都在：这层省掉无谓的调用，那层保证任何调用方都不会漏。
+  if (opens.rawPanel) await renderEvents();
 }
 
 function connectStream() {

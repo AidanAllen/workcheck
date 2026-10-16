@@ -397,12 +397,20 @@ async function waitUp(srv, port) {
       check('日志可按 status=ok 过滤', ok.status === 200 && ok.body.items.every((i) => i.ok === 1), ok.body.items.map((i) => i.ok));
       const bad = await req('GET', '/api/logs?status=fail&limit=50', { cookie });
       check('日志可按 status=fail 过滤', bad.status === 200 && bad.body.items.every((i) => i.ok === 0), bad.body.items.map((i) => i.ok));
-      // 观察项：传数字状态码会怎样？记录下来（前端目前只传 limit/offset，没有调用方）
+      // 数字状态码：以前会被静默忽略（返回全量），现在应当真的按状态码筛
       const num = await req('GET', '/api/logs?status=403&limit=50', { cookie });
-      const allNum = num.body.items.every((i) => i.status === 403);
-      note(
-        `传 ?status=403（数字状态码）→ ${num.status}，${allNum ? '正确过滤' : '未过滤、返回全部 ' + num.body.items.length + ' 条（status 只认 ok/fail 两个字符串）'}`
+      check(
+        '日志可按数字状态码过滤（status=403）',
+        num.status === 200 && num.body.items.length > 0 && num.body.items.every((i) => i.status === 403),
+        { status: num.status, n: num.body.items.length, got: num.body.items.map((i) => i.status) }
       );
+      // 写错的取值必须明确报错，不能让调用方误以为筛选生效
+      const junk = await req('GET', '/api/logs?status=abc&limit=50', { cookie });
+      check('非法 status 明确报 400', junk.status === 400, junk.body);
+      const two = await req('GET', '/api/logs?status=40&limit=50', { cookie });
+      check('两位数状态码同样被拒（400）', two.status === 400, two.status);
+      const blank = await req('GET', '/api/logs?status=&limit=5', { cookie });
+      check('status 留空等同不筛选', blank.status === 200 && blank.body.items.length > 0, blank.status);
     }
 
     group('SSE 实时日志流');

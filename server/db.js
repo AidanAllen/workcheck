@@ -268,8 +268,15 @@ S.getLog = db.prepare('SELECT * FROM access_logs WHERE id = ?');
 function logs({ limit = 100, offset = 0, status, source } = {}) {
   const where = [];
   const args = [];
+  // status 三种取值：ok / fail 按「是否成功」过滤，数字按 HTTP 状态码过滤。
+  // 非法值由调用方（/api/logs）拦掉并报 400 —— 这里若默默忽略，
+  // 调用方会以为过滤生效了，实际拿到的是全量数据。
   if (status === 'ok') where.push('ok = 1');
-  if (status === 'fail') where.push('ok = 0');
+  else if (status === 'fail') where.push('ok = 0');
+  else if (status) {
+    where.push('status = ?');
+    args.push(Number(status));
+  }
   if (source) {
     where.push('source_name = ?');
     args.push(source);

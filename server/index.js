@@ -440,10 +440,20 @@ app.get('/api/checkin/daily', (req, res) => {
 
 app.get('/api/logs', (req, res) => {
   // 分页：limit 每页条数、offset 偏移量，返回 { items, total }
+  const raw = req.query.status;
+  let status = '';
+  if (raw !== undefined && String(raw) !== '') {
+    status = String(raw);
+    // 只认 ok / fail / 三位数字状态码。别的（比如写错成 "40"、"error"）一律明确报错：
+    // 默默忽略的话，调用方会以为筛选生效了，拿到的却是全量日志。
+    if (status !== 'ok' && status !== 'fail' && !/^\d{3}$/.test(status)) {
+      return res.status(400).json({ ok: false, error: `status 只支持 ok / fail / 三位数字状态码，收到「${status}」` });
+    }
+  }
   const data = logs({
     limit: Number(req.query.limit) || 100,
     offset: Number(req.query.offset) || 0,
-    status: req.query.status,
+    status,
     source: req.query.source,
   });
   res.json({ ...data, items: data.items.map(stripIp) });
