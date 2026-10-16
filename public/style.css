@@ -191,15 +191,27 @@ body {
 }
 .nav-link:hover { background: var(--accent-soft); transform: translateY(-1px); box-shadow: var(--shadow); }
 a.btn { text-decoration: none; display: inline-flex; align-items: center; }
-/* 链接形态的主按钮（「飞书授权 / 重新授权」「去开放平台配置」都是 <a>）：
-   下面那批 button.btn.primary 规则带 button 前缀，<a> 套不上 —— 不补的话既没有
-   渐变底、字色也会掉回浏览器默认链接色。这里把渐变底和字色一起补全。 */
-a.btn.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  border-color: transparent; color: var(--accent-on);
-  box-shadow: 0 4px 14px var(--accent-glow);
+/* 链接形态的按钮（「飞书授权 / 重新授权」「去开放平台配置」都是 <a>）。
+   它们要的是和 <button class="btn"> 一样的低调样式：透明底 + 浅色字。
+   但 <a> 有两个坑必须显式压住，不然会掉回浏览器默认链接色（蓝色/紫色）：
+     1. 常规态的 color
+     2. 访问过的链接（:visited）也会有默认色，而它的优先级比 :link 高，
+        所以这里用 :link / :visited 一起选择，别只写 a.btn
+   下面那批 button.btn 规则带 button 前缀，<a> 一条都套不上。 */
+a.btn:link, a.btn:visited {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  padding: 7px 16px; font-size: 13px; font-weight: 600;
+  transition: all .18s ease;
 }
-a.btn.primary:hover { color: var(--accent-on); transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
+a.btn:link:hover, a.btn:visited:hover {
+  border-color: var(--accent); color: var(--accent);
+  transform: translateY(-1px); box-shadow: var(--shadow);
+}
+/* 链接形态的 mini：和 button.btn.mini 对齐 */
+a.btn.mini:link, a.btn.mini:visited { padding: 4px 12px; font-size: 12px; }
 
 .setup-note {
   font-size: 13px; color: var(--text-2); line-height: 1.9;
