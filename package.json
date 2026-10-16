@@ -1,0 +1,15 @@
+{
+  "name": "workcheck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "第三方数据接收与可视化看板",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "selftest": "node scripts/selftest.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "better-sqlite3": "^11.8.1"
+  }
+}

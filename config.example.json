@@ -1,0 +1,28 @@
+{
+  "_说明": [
+    "这是 data/config.json 的模板，仅供参照格式 —— 不参与运行。",
+    "实际配置请在浏览器里打开 http://<你的地址>:3000/setup → 「配置信息」标签里填写，",
+    "保存后会写进数据目录下的 config.json，改完立即生效、不需要重启。",
+    "密钥在接口返回时一律是掩码，页面不回显明文；这里的三项 secret 留空表示不修改。",
+    "飞书的 chatId / redirectUri / scope 留空时用程序内置默认值（见 server/config.js）。"
+  ],
+
+  "capsolver": {
+    "apiKey": "CAP-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "lowThreshold": 0.5,
+    "unitPricePer1k": 0.8
+  },
+
+  "ttshitu": {
+    "username": "你的 TT识图 账号",
+    "password": "你的 TT识图 密码"
+  },
+
+  "feishu": {
+    "appId": "cli_xxxxxxxxxxxxxxxx",
+    "appSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "chatId": "oc_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "redirectUri": "http://localhost:3000/feishu/callback",
+    "scope": "im:message im:chat:readonly"
+  }
+}

@@ -1,0 +1,61 @@
+/* ==================================================================
+   主题一 · 初樱（默认）
+   粉发少女壁纸，暖褐暗部 + 发粉 + 暖光蜜桃。
+   这个文件与 style.css :root 的兜底值保持一致——主题文件加载失败时
+   页面自动回落到这里定义的默认主题。
+   ================================================================== */
+
+:root {
+  /* 背景与容器 */
+  --bg: #1d1519;
+  --surface: rgba(38, 28, 34, 0.62);
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --border: rgba(255, 190, 210, 0.16);
+  --border-strong: rgba(255, 190, 210, 0.32);
+
+  /* 文字 */
+  --text: #fbe9ee;
+  --text-2: #d2b4be;
+  --text-3: #9c8290;
+
+  /* 主色：发粉 */
+  --accent: #ff9fb9;
+  --accent-soft: rgba(255, 159, 185, 0.15);
+  --accent-deep: #f27a9f;
+  --accent-glow: rgba(255, 121, 158, 0.32);
+  --accent-on: #fff; /* 主色渐变底上仍用白字（sakura 的粉够深） */
+
+  /* 状态色：成功=暖光蜜桃、失败=眼色玫红、漏签=暖黄（无绿无紫） */
+  --ok: #f2b48c;
+  --ok-soft: rgba(242, 180, 140, 0.14);
+  --ok-border: rgba(242, 180, 140, 0.4);
+  --fail: #f0628f;
+  --fail-soft: rgba(240, 98, 143, 0.15);
+  --fail-border: rgba(240, 98, 143, 0.42);
+  --warn: #f5cf7a;
+  --warn-soft: rgba(245, 207, 122, 0.12);
+  --warn-border: rgba(245, 207, 122, 0.38);
+  --plat-tb: #ff9fb9;   /* 贴吧 = 粉 */
+  --plat-st: #a9c6dd;   /* 色花堂 = 毛衣浅蓝 */
+
+  /* 壁纸与遮罩 */
+  --wall-portrait: url('/bg/portrait.jpg');
+  --wall-landscape: url('/bg/landscape.jpg');
+  --wall-scrim: linear-gradient(180deg,
+      rgba(22, 15, 19, 0.34) 0%,
+      rgba(22, 15, 19, 0.4) 45%,
+      rgba(22, 15, 19, 0.6) 100%);
+
+  /* 渐变辅色 */
+  --num-grad-2: #f2b48c;
+  --ok-grad-1: #ffc9a3;
+  --ok-badge-text: #40230f;
+  --fail-grad-1: #ff8fb0;
+  --warn-grad-2: #ff9d6b;
+  --glow-1: rgba(255, 121, 168, 0.08);
+  --glow-2: rgba(242, 180, 140, 0.06);
+
+  /* 滚动条：粉调细条，悬停加深 */
+  --scroll-thumb: rgba(255, 159, 185, 0.3);
+  --scroll-thumb-hover: rgba(255, 159, 185, 0.55);
+}

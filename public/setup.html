@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>接入配置 · workcheck</title>
+<link rel="stylesheet" href="/style.css">
+<link id="themeCss" rel="stylesheet">
+<script>
+/* 首屏前套用已保存的主题，避免先闪一下默认色再切 */
+try { var t = localStorage.getItem('workcheck.theme'); if (t && t !== 'sakura') document.getElementById('themeCss').href = '/themes/' + t + '.css'; } catch (e) {}
+</script>
+</head>
+<body>
+
+<!-- 壁纸：竖屏窗口用 9:16，横屏窗口用 16:9，遮罩保证文字可读 -->
+<div class="wallpaper wallpaper--portrait" aria-hidden="true"></div>
+<div class="wallpaper wallpaper--landscape" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>🎀 接入配置</h1>
+  </div>
+  <div class="controls">
+    <span class="panel-hint" id="authUser" hidden></span>
+    <button class="btn mini" id="btnLogout" hidden>退出登录</button>
+    <div class="segmented small theme-switch" id="themeSwitch" role="group" aria-label="主题切换"></div>
+    <a class="nav-link" href="/">← 返回看板</a>
+  </div>
+</header>
+
+<!-- 登录/创建账号遮罩：未登录时盖住下面的管理内容。
+     首次运行库里没有账号，显示的是创建页；已经建过账号则显示登录页。
+     点这张卡以外的空白处 = 离开当前页（见 setup.js 的 leaveSetup）。 -->
+<div class="auth-gate" id="authGate" hidden>
+  <form class="auth-card panel" id="authForm">
+    <h2 class="panel-title" id="authTitle">👤 创建管理员</h2>
+    <p class="auth-desc" id="authDesc">首次使用，先建一个账号密码，之后进这个页面都要登录。</p>
+    <label class="auth-field">
+      <span>账号</span>
+      <input type="text" id="authUserInput" autocomplete="username" placeholder="3~32 个字符" maxlength="32">
+    </label>
+    <label class="auth-field">
+      <span>密码</span>
+      <input type="password" id="authPassInput" autocomplete="current-password" placeholder="至少 6 位">
+    </label>
+    <p class="auth-err" id="authErr" hidden></p>
+    <button class="btn primary" type="submit" id="authSubmit">创建并登录</button>
+    <p class="auth-tip" id="authTip">密码用加盐哈希存库，服务端不保存明文。</p>
+  </form>
+  <p class="auth-back-tip" id="authBackTip">← 点击空白处返回上一页</p>
+</div>
+
+<main id="appBody" hidden>
+  <!-- 两个标签：数据推送 = 对外暴露的 API 推送能力；配置信息 = 本项目依赖的第三方凭证 -->
+  <div class="tabs" id="setupTabs">
+    <button class="tab active" data-tab="push">数据推送</button>
+    <button class="tab" data-tab="config">配置信息</button>
+  </div>
+
+  <!-- ------------------------------------------------------------ 数据推送 -->
+  <div class="tab-pane" id="panePush">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">🔑 推送来源</h2>
+        <span class="panel-hint">每个来源一把独立 API Key，互不干扰</span>
+      </div>
+      <div id="sourceList"></div>
+      <div class="row-actions" style="margin-top:14px">
+        <input type="text" id="newSourceName" placeholder="新来源名称，如：订单系统" style="flex:1 1 160px">
+        <button class="btn primary" id="btnAddSource">新增来源</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">📨 推送接入示例</h2>
+        <div class="segmented small" id="langSwitch">
+          <button data-lang="curl" class="active">curl</button>
+          <button data-lang="js">JavaScript</button>
+        </div>
+      </div>
+      <pre class="snippet" id="snippetBox">加载中…</pre>
+      <div class="row-actions" style="margin-top:10px">
+        <button class="btn" id="btnCopy">复制示例</button>
+        <span class="panel-hint">示例已自动带上你的 API Key 和当前访问地址，支持单条或数组批量</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">🧪 链路自检</h2>
+        <span class="panel-hint">不用等第三方，先自己推几条验证整条链路</span>
+      </div>
+      <div class="row-actions">
+        <button class="btn" id="btnPush1">推送 1 条测试数据</button>
+        <button class="btn" id="btnPush10">推送 10 条</button>
+        <span class="panel-hint" id="pushResult">推送后回看板看实时日志</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- ------------------------------------------------------------ 配置信息 -->
+  <div class="tab-pane" id="paneConfig" hidden>
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">🐦 飞书群接入</h2>
+        <span class="panel-hint" id="feishuState">检查中…</span>
+      </div>
+      <div class="setup-note">
+        签到数据来自飞书群，读取用的是<b>你本人的飞书身份 OAuth</b>，不需要把机器人拉进群，也能读历史消息。
+        令牌有效期约 2 小时，服务会自动续期 —— 只有授权被撤销时才需要重新点一次。
+        数据由服务进程<b>直接入库</b>，不走推送接口、也不需要任何 API Key。
+      </div>
+      <div class="row-actions" style="margin-top:12px">
+        <a class="btn primary" href="/feishu/auth">飞书授权 / 重新授权</a>
+        <button class="btn" id="btnPullNow">立即拉取一次</button>
+        <span class="panel-hint" id="pullState">读取调度状态…</span>
+      </div>
+    </section>
+
+    <section class="panel" data-group="feishu">
+      <div class="panel-head">
+        <h2 class="panel-title">🔧 飞书应用凭证</h2>
+        <span class="panel-hint" id="fsState">加载中…</span>
+      </div>
+      <div class="cred-grid">
+        <label class="auth-field">
+          <span>App ID</span>
+          <input type="text" data-field="appId" id="fsAppId" placeholder="cli_xxx" autocomplete="off">
+        </label>
+        <label class="auth-field">
+          <span>App Secret</span>
+          <input type="password" data-field="appSecret" id="fsAppSecret" placeholder="留空表示不修改" autocomplete="new-password">
+        </label>
+        <label class="auth-field">
+          <span>群 ID</span>
+          <input type="text" data-field="chatId" id="fsChatId" placeholder="oc_xxx" autocomplete="off">
+        </label>
+        <label class="auth-field">
+          <span>回调地址</span>
+          <input type="text" data-field="redirectUri" id="fsRedirect" placeholder="http://localhost:3000/feishu/callback" autocomplete="off">
+        </label>
+        <label class="auth-field">
+          <span>授权范围 scope</span>
+          <input type="text" data-field="scope" id="fsScope" placeholder="im:message im:chat:readonly" autocomplete="off">
+        </label>
+      </div>
+      <div class="setup-note" style="margin-top:12px">
+        授权报错 <b>20029</b> 基本都是回调地址差了一两个字符（127.0.0.1 与 localhost 在飞书白名单里算两个地址、
+        末尾多一个斜杠、少了 /feishu/callback 都会中招）。把你在开放平台填的地址粘回来逐字比对：
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" id="redirectInput" placeholder="http://localhost:3000/feishu/callback"
+            style="flex:1 1 auto;padding:7px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:inherit;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace">
+          <button class="btn" id="btnCheckRedirect" style="flex:0 0 auto">比对</button>
+        </div>
+        <div id="checkRedirectResult" style="margin-top:8px;line-height:1.8"></div>
+      </div>
+      <div class="row-actions" style="margin-top:12px">
+        <button class="btn primary" data-save="feishu">保存飞书配置</button>
+        <button class="btn danger" data-reset="feishu">清除</button>
+      </div>
+    </section>
+
+    <section class="panel" data-group="capsolver">
+      <div class="panel-head">
+        <h2 class="panel-title">🔧 CapSolver</h2>
+        <span class="panel-hint" id="capState">加载中…</span>
+      </div>
+      <div class="cred-grid">
+        <label class="auth-field">
+          <span>Client Key</span>
+          <input type="password" data-field="apiKey" id="capApiKey" placeholder="CAP- 开头，留空表示不修改" autocomplete="new-password">
+        </label>
+        <label class="auth-field">
+          <span>余额告警阈值（美元）</span>
+          <input type="number" step="0.1" data-field="lowThreshold" id="capThreshold" placeholder="0.5">
+        </label>
+        <label class="auth-field">
+          <span>单价（美元 / 千次）</span>
+          <input type="number" step="0.1" data-field="unitPricePer1k" id="capPrice" placeholder="0.8">
+        </label>
+      </div>
+      <div class="row-actions" style="margin-top:12px">
+        <button class="btn primary" data-save="capsolver">保存 CapSolver 配置</button>
+        <button class="btn danger" data-reset="capsolver">清除</button>
+      </div>
+    </section>
+
+    <section class="panel" data-group="ttshitu">
+      <div class="panel-head">
+        <h2 class="panel-title">🔧 TT识图</h2>
+        <span class="panel-hint" id="ttState">加载中…</span>
+      </div>
+      <div class="cred-grid">
+        <label class="auth-field">
+          <span>账号</span>
+          <input type="text" data-field="username" id="ttUser" placeholder="平台登录账号" autocomplete="off">
+        </label>
+        <label class="auth-field">
+          <span>密码</span>
+          <input type="password" data-field="password" id="ttPass" placeholder="留空表示不修改" autocomplete="new-password">
+        </label>
+      </div>
+      <div class="row-actions" style="margin-top:12px">
+        <button class="btn primary" data-save="ttshitu">保存 TT识图 配置</button>
+        <button class="btn danger" data-reset="ttshitu">清除</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">📁 配置存放位置</h2>
+      </div>
+      <div class="setup-note">
+        以上三组凭证统一存放在数据目录下的 <code class="field">config.json</code>，改完立即生效，不需要重启。
+        密钥在接口返回时一律是掩码，页面不回显明文。用量快照另存在 <code class="field">*_usage.json</code>，
+        那是采样出来的派生数据，删掉会自动重建。
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="/common.js"></script>
+<script src="/setup.js"></script>
+</body>
+</html>

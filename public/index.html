@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据接收看板 · workcheck</title>
+<link rel="stylesheet" href="/style.css">
+<link id="themeCss" rel="stylesheet">
+<script>
+/* 首屏前套用已保存的主题，避免先闪一下默认色再切（品牌图标同理） */
+try { var t = localStorage.getItem('workcheck.theme'); if (t && t !== 'sakura') document.getElementById('themeCss').href = '/themes/' + t + '.css'; } catch (e) {}
+document.addEventListener('DOMContentLoaded', function () { if (typeof syncBrandIcon === 'function') syncBrandIcon(); });
+</script>
+</head>
+<body data-title="数据接收看板 · workcheck">
+
+<!-- 壁纸：竖屏窗口用 9:16，横屏窗口用 16:9，遮罩保证文字可读 -->
+<div class="wallpaper wallpaper--portrait" aria-hidden="true"></div>
+<div class="wallpaper wallpaper--landscape" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot off" id="liveDot"></span>
+    <h1><span id="brandIcon">🌸</span> 数据接收看板</h1>
+  </div>
+  <div class="controls">
+    <div class="segmented small theme-switch" id="themeSwitch" role="group" aria-label="主题切换"></div>
+    <a class="nav-link" href="/setup.html">接入配置 →</a>
+    <button class="btn mini" id="resetOrder" type="button" hidden title="恢复面板默认顺序">↺ 默认排序</button>
+  </div>
+</header>
+
+<main>
+  <nav class="tabs" id="mainTabs" role="tablist">
+    <button class="tab active" data-pane="dash" type="button" role="tab" aria-selected="true">📊 数据看板</button>
+    <button class="tab" data-pane="logs" type="button" role="tab" aria-selected="false">🧾 日志与报文</button>
+  </nav>
+
+  <div class="tab-pane" id="paneDash">
+  <section class="panel collapsible" id="balancePanel">
+    <div class="panel-head toggle-head" data-toggle="balancePanel" role="button" tabindex="0" aria-expanded="true" aria-controls="balanceBody">
+      <h2 class="panel-title"><span class="drag-handle" title="按住拖动排序">⠿</span><span class="caret">▾</span>💰 打码平台余额</h2>
+      <button class="btn mini" id="balRefresh" type="button">刷新</button>
+    </div>
+    <div class="panel-body" id="balanceBody" data-panel-body>
+      <div class="bal-grid">
+      <div class="bal-card">
+        <div class="bal-name">TT识图<span class="bal-host">ttshitu.com</span></div>
+        <div id="ttBody"><div class="empty">加载中…</div></div>
+      </div>
+      <div class="bal-card">
+        <div class="bal-name">CapSolver<span class="bal-host">云盾 · capsolver.com</span></div>
+        <div id="csBody"><div class="empty">加载中…</div></div>
+      </div>
+    </div>
+    <div class="panel-hint" style="margin-top:10px">数据来自各平台官方余额接口，约 30 秒缓存；今日识别次数按当天首次采样起算，鼠标悬停看统计起点</div>
+    </div>
+  </section>
+
+  <section class="panel collapsible" id="checkinPanel">
+    <div class="panel-head toggle-head" data-toggle="checkinPanel" role="button" tabindex="0" aria-expanded="true" aria-controls="checkinBody">
+      <h2 class="panel-title"><span class="drag-handle" title="按住拖动排序">⠿</span><span class="caret">▾</span>📅 签到数据</h2>
+      <div class="segmented" id="checkinRange">
+        <button data-days="7">近 7 天</button>
+        <button data-days="14">近 14 天</button>
+        <button data-days="30" class="active">近 30 天</button>
+        <button data-days="0">全部</button>
+      </div>
+    </div>
+    <div class="panel-body" id="checkinBody" data-panel-body>
+    <div class="latest-box" id="latestBox"></div>
+
+    <div class="checkin-summary" id="checkinSummary"></div>
+
+    <div class="cal-sep"></div>
+
+    <div class="cal-block">
+      <div class="cal-head">
+        <div class="cal-nav">
+          <button class="btn mini" id="calPrev" type="button" aria-label="上一月">‹</button>
+          <span class="cal-title" id="calTitle">—</span>
+          <button class="btn mini" id="calNext" type="button" aria-label="下一月">›</button>
+          <button class="btn mini" id="calToday" type="button">本月</button>
+        </div>
+        <div class="cal-stat" id="calStat"></div>
+      </div>
+      <div class="cal-week">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="legend cal-legend">
+        <span><i class="sw ok"></i>全部成功</span>
+        <span><i class="sw fail"></i>有失败</span>
+        <span><i class="sw none"></i>无签到</span>
+        <span><i class="sw missed"></i>漏签</span>
+        <span><i class="mk tb ok"></i>贴吧</span>
+        <span><i class="mk st ok"></i>色花堂</span>
+        <span><i class="sw today"></i>今天</span>
+      </div>
+      <div class="cal-detail" id="calDetail"></div>
+    </div>
+    </div>
+
+  </section>
+  </div>
+
+  <div class="tab-pane" id="paneLogs" hidden>
+  <section class="panel collapsible" id="logPanel">
+    <div class="panel-head toggle-head" data-toggle="logPanel" role="button" tabindex="0" aria-expanded="true" aria-controls="logBody">
+      <h2 class="panel-title"><span class="drag-handle" title="按住拖动排序">⠿</span><span class="caret">▾</span>💬 实时日志</h2>
+      <span class="panel-hint" id="streamState">连接中…</span>
+    </div>
+    <div class="panel-body" id="logBody" data-panel-body>
+      <div class="log-list" id="logList"></div>
+      <div class="waterfall-foot" id="logFoot" hidden></div>
+    </div>
+  </section>
+
+  <section class="panel collapsible" id="rawPanel">
+    <div class="panel-head toggle-head" data-toggle="rawPanel" role="button" tabindex="0" aria-expanded="false" aria-controls="rawBody">
+      <h2 class="panel-title"><span class="drag-handle" title="按住拖动排序">⠿</span><span class="caret">▾</span>📦 原始报文</h2>
+      <span class="panel-hint">原文留存，清洗规则可随时重跑<span id="rawCountWrap" hidden> · <span id="rawCount">0</span> 条</span></span>
+    </div>
+    <div class="panel-body" id="rawBody" data-panel-body hidden>
+      <div class="raw-list" id="eventList"></div>
+      <div class="pager" id="rawPager" hidden></div>
+    </div>
+  </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="/common.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

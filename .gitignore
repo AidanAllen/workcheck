@@ -1,0 +1,21 @@
+# 运行期数据：SQLite 库、config.json（CapSolver / TT识图 / 飞书凭证）、飞书令牌、
+# 用量快照、API Key 全在里面。凭证一旦入库就跟代码一起走，所以整目录忽略。
+data/
+# 各种备份目录（手工备份、自动备份）同样含明文凭证，用通配符兜住
+data.bak-*/
+data.bak*/
+*.bak/
+backup*/
+
+node_modules/
+*.log
+npm-debug.log*
+
+# 本地会话与工作记录
+.workbuddy/
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

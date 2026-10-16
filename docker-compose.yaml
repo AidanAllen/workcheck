@@ -1,0 +1,74 @@
+# workcheck 部署编排
+#
+# 直接从 GitHub 拉代码构建，不需要先把仓库 clone 下来：
+#   docker compose up -d --build
+# 想用自己 fork 的地址，把 build.context 换成对应仓库地址即可（分支用 # 指定）。
+#
+# 所有平台凭证（CapSolver / TT识图 / 飞书）都在浏览器里配置：
+#   启动后打开 http://<服务器IP>:3000/setup，首次进入会先让你创建管理员账号，
+#   然后在「配置信息」标签里填写 —— 不需要在这里写任何密钥。
+#   凭证落在挂载卷里的 config.json，改完立即生效，不用重启容器。
+#
+# 环境变量只放部署参数（端口、数据目录、定时周期），业务凭证一律不从这里走。
+
+services:
+  workcheck:
+    build:
+      context: https://github.com/your-name/workcheck.git#main
+      # 本地改代码、想直接构建当前目录时，把上面一行换成：
+      # context: .
+    image: workcheck:latest
+    container_name: workcheck
+    restart: unless-stopped
+
+    ports:
+      # 只想让本机访问就写 "127.0.0.1:3000:3000"，别把管理页暴露到公网
+      - "3000:3000"
+
+    environment:
+      PORT: "3000"
+      # 数据目录固定指向挂载点，容器重建也不会丢库与配置
+      WORKCHECK_DATA_DIR: /data
+      TZ: Asia/Shanghai
+
+      # ---- 定时拉取飞书群签到数据 ----
+      # 关掉定时（只保留页面上「立即拉取」按钮）就改成 "0"
+      PULL_ENABLED: "1"
+      # 拉取间隔（分钟），默认 120
+      PULL_INTERVAL_MIN: "120"
+      # 服务启动后首次拉取的延迟（秒）
+      PULL_START_DELAY: "8"
+      # 一轮失败后多久补跑（分钟）
+      PULL_RETRY_MIN: "15"
+
+      # ---- 访问日志保留条数（超出后自动清理最老的）----
+      LOG_KEEP: "20000"
+
+      # ---- 忘记管理员密码时的应急入口（可选）----
+      # 设了之后，请求头带上 X-Admin-Token: <值> 也能访问管理接口。
+      # 平时留空即可；填了就等于开了一个长期有效的后门，用完记得撤掉。
+      # ADMIN_TOKEN: ""
+
+    volumes:
+      # 唯一需要持久化的地方：SQLite 库、config.json、飞书令牌与用量快照都在这里
+      - workcheck-data:/data
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  workcheck-data:

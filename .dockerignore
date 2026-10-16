@@ -1,0 +1,28 @@
+# 构建上下文里不需要的东西 —— 尤其是 data/：
+# 那里面有各家平台的明文凭证和 SQLite 库，一旦被打进镜像，镜像推到哪里凭证就跟着到哪里。
+# 容器运行期用的是挂载卷，不依赖镜像里的 data/。
+
+data/
+data.bak-*/
+data.bak*/
+*.bak/
+backup*/
+node_modules/
+npm-debug.log*
+*.log
+
+.git/
+.gitignore
+.github/
+
+.workbuddy/
+.tmp-*/
+*.bak
+*.bak-*
+
+# 文档与编辑器配置改代码时不需要重新构建，排除掉能减小上下文
+README.md
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
