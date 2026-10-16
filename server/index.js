@@ -11,6 +11,7 @@ const { router: capsolverRouter } = require('./capsolver');
 const scheduler = require('./scheduler');
 const checkin = require('./checkin');
 const config = require('./config');
+const version = require('./version');
 const { setLogSink, SOURCE_NAME } = require('./checkin_pull');
 const {
   S,
@@ -603,7 +604,7 @@ app.post('/api/demo/push', adminGuard, (req, res) => {
   return res.status(out.status).json(out.body);
 });
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString(), app: version.name, version: version.version }));
 
 // ---------------------------------------------------------------- 定时拉取
 
