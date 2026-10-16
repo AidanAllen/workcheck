@@ -143,10 +143,11 @@ function renderSourceList() {
     .map((s) => {
       const full = state.keys[s.id];
       // 内置来源（飞书签到直写入库用的那一个）：不能删，也没有推送 Key。
-      // 它的数据是服务进程直接 insertMany 写进来的，压根不走 HTTP，给把 Key 反而是个多余的入口。
+      // 它的数据是服务进程直接 insertMany 写进来的，压根不走 HTTP ——
+      // 所以这一行连 Key 的位置都不给，避免出现一个「长得像凭据、其实没东西」的框。
       const builtin = s.builtin ? '<span class="tag on" title="服务进程直接从飞书拉取入库，不走 HTTP，因此不持有推送 Key">内置</span>' : '';
       const keyCell = s.builtin
-        ? '<span class="key-box none" title="数据由服务进程直接写入，无需推送 Key">无需 Key</span>'
+        ? '<span class="src-nokey" title="数据由服务进程直接写入数据库，不经过 HTTP，因此没有推送 Key">服务进程直接入库，无推送 Key</span>'
         : `<span class="key-box${full ? ' revealed' : ''}" data-act="key" title="点击显示并复制完整 API Key">${
             full ? escapeHtml(full) : escapeHtml(s.api_key_masked || '••••••••')
           }</span>`;
