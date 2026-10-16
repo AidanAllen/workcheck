@@ -8,6 +8,7 @@
     "start": "node server/index.js",
     "selftest": "node scripts/selftest.js",
     "flowtest": "node scripts/flowtest.js",
+    "pulltest": "node scripts/pulltest.js",
     "check-version": "node scripts/check-version.js",
     "release": "bash scripts/release.sh"
   },

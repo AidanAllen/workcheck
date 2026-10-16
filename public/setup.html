@@ -158,7 +158,12 @@
       <div class="row-actions" style="margin-top:12px">
         <a class="btn primary" href="/feishu/auth">飞书授权 / 重新授权</a>
         <button class="btn" id="btnPullNow">立即拉取一次</button>
+        <button class="btn" id="btnPullFull" title="忽略水位线，把群里所有消息重扫一遍">全量重建</button>
         <span class="panel-hint" id="pullState">读取调度状态…</span>
+      </div>
+      <div class="setup-note" style="margin-top:8px">
+        平时是<b>增量拉取</b>：只问飞书「上次拉到的时间点之后有什么」，群里消息再多通常也只翻一页。
+        换群之后、或怀疑漏了数据时，点<b>全量重建</b>把整个群重扫一遍（重复数据会自动去重，不会算两次）。
       </div>
     </section>
 

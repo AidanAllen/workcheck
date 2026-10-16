@@ -639,9 +639,11 @@ app.get('/api/scheduler', adminGuard, (_req, res) => {
   res.json({ ok: true, ...scheduler.state, now: new Date().toISOString() });
 });
 
-app.post('/api/scheduler/run', adminGuard, async (_req, res) => {
+app.post('/api/scheduler/run', adminGuard, async (req, res) => {
   if (scheduler.state.running) return res.status(409).json({ ok: false, error: '上一次还没跑完' });
-  const r = await scheduler.runOnce('api');
+  // full=true 是页面上的「全量重建」：忽略水位线，把群里所有消息重扫一遍。
+  // 日常定时和「立即拉取」都走增量，只问飞书「上次之后有什么」。
+  const r = await scheduler.runOnce('api', { full: !!(req.body && req.body.full) });
   res.json({ ok: true, ...r, state: scheduler.state });
 });
 

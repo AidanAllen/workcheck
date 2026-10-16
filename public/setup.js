@@ -350,7 +350,9 @@ async function loadPullState() {
     else parts.push('定时已关闭');
     if (s.lastFinishAt) {
       const n = s.lastInserted == null ? '—' : `${s.lastInserted} 条`;
-      parts.push(s.lastOk ? `上次 ${hhmm(s.lastFinishAt)} 入库 ${n}` : `上次 ${hhmm(s.lastFinishAt)} 失败：${s.lastError}`);
+      // 增量还是全量要能看出来：增量没生效的话这里会一直是「全量」，一眼可辨
+      const how = s.lastMode === 'incremental' ? '增量 ' : s.lastMode === 'full' ? '全量 ' : '';
+      parts.push(s.lastOk ? `上次 ${hhmm(s.lastFinishAt)} ${how}入库 ${n}` : `上次 ${hhmm(s.lastFinishAt)} 失败：${s.lastError}`);
     } else {
       parts.push('还没跑过');
     }
@@ -362,12 +364,22 @@ async function loadPullState() {
   }
 }
 
-async function pullNow() {
-  const btn = $('btnPullNow');
+/**
+ * 拉一次。
+ * full=false（「立即拉取」）：增量，只问飞书「上次拉到的时间点之后有什么」，
+ *   群里消息再多也通常只有一页。
+ * full=true（「全量重建」）：忽略水位线把整个群重扫一遍，换群、怀疑漏数据时才用。
+ */
+async function pullNow(full = false) {
+  const btn = full ? $('btnPullFull') : $('btnPullNow');
   btn.disabled = true;
-  $('pullState').textContent = '拉取中…';
+  $('pullState').textContent = full ? '全量重建中…' : '拉取中…';
   try {
-    const r = await adminApi('/api/scheduler/run', { method: 'POST' });
+    const r = await adminApi('/api/scheduler/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full }),
+    });
     toast(r.ok ? `拉取完成，入库 ${r.inserted} 条` : `拉取失败：${r.error || '未知原因'}`);
   } catch (err) {
     toast(err.message);
@@ -640,7 +652,10 @@ function bind() {
   $('fsAppId').addEventListener('input', syncFeishuConsole);
   $('btnCopyRedirect').addEventListener('click', copyRedirect);
 
-  $('btnPullNow').addEventListener('click', pullNow);
+  // 注意必须包一层箭头函数：直接传 pullNow 会把 click 的 Event 当成 full 参数传进去，
+  // 而 Event 对象是 truthy —— 「立即拉取」就悄悄变成全量重建了
+  $('btnPullNow').addEventListener('click', () => pullNow(false));
+  $('btnPullFull').addEventListener('click', () => pullNow(true));
 
   // 凭证表单的保存 / 清除：统一委托，省得给六个按钮各绑一次
   document.querySelectorAll('[data-save]').forEach((btn) => {

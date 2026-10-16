@@ -39,6 +39,8 @@ const state = {
   lastDuplicated: null,
   lastFetched: null,
   lastError: null,
+  lastMode: null,   // 'incremental' | 'full'
+  lastPages: null,  // 上次翻了几页 —— 增量生效后这个数应该稳定在 1
   runCount: 0,
   nextRunAt: null,
   retryAt: null,
@@ -68,8 +70,11 @@ function cancelRetry() {
   state.retryAt = null;
 }
 
-/** 跑一次。页面上的「立即拉取」和定时器走的是同一个入口，所以状态是同一份 */
-async function runOnce(reason = 'manual') {
+/**
+ * 跑一次。页面上的「立即拉取」和定时器走的是同一个入口，所以状态是同一份。
+ * opts 原样透传给 pull —— 页面要「全量重建」时传 { full: true }。
+ */
+async function runOnce(reason = 'manual', opts = {}) {
   if (state.running) return { skipped: true, reason: '上一次还没跑完' };
 
   state.running = true;
@@ -78,7 +83,7 @@ async function runOnce(reason = 'manual') {
 
   let r;
   try {
-    r = await pull({});
+    r = await pull(opts);
   } catch (e) {
     // pull 内部已经兜住了绝大多数异常，这里只是最后一道防线
     r = { ok: false, error: e && e.message ? e.message : String(e), inserted: 0, duplicated: 0, fetched: 0, parsed: 0, skipped: 0, merged: 0 };
@@ -90,12 +95,15 @@ async function runOnce(reason = 'manual') {
   state.lastInserted = r.inserted;
   state.lastDuplicated = r.duplicated;
   state.lastFetched = r.fetched;
+  state.lastMode = r.mode || null;
+  state.lastPages = r.pages ?? null;
   state.lastError = r.ok ? null : r.error || '拉取失败';
   state.runCount += 1;
   state.history.unshift({
     at: state.lastFinishAt,
     reason,
     ok: r.ok,
+    mode: r.mode || null,
     inserted: r.inserted,
     duplicated: r.duplicated,
     error: state.lastError,
@@ -104,7 +112,9 @@ async function runOnce(reason = 'manual') {
   state.history = state.history.slice(0, 20);
 
   console.log(
-    `  [定时拉取] ${r.ok ? '成功' : '失败'}  拉取 ${r.fetched ?? 0} 条消息  入库 ${r.inserted ?? 0} 条` +
+    `  [定时拉取] ${r.ok ? '成功' : '失败'}  ${r.mode === 'incremental' ? '增量' : '全量'}拉取 ${r.fetched ?? 0} 条消息` +
+      (r.pages ? `（${r.pages} 页）` : '') +
+      `  入库 ${r.inserted ?? 0} 条` +
       (r.duplicated ? `  重复 ${r.duplicated} 条` : '') +
       `  耗时 ${Date.now() - started}ms` +
       (r.ok ? '' : `  原因：${state.lastError}`)

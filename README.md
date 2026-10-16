@@ -141,7 +141,8 @@ curl -X POST http://localhost:3000/api/ingest \
 
 ```bash
 npm run selftest        # 解析规则单测（10 个用例）
-npm run flowtest        # 端到端流程测试（105 项，见下）
+npm run flowtest        # 端到端流程测试（109 项，见下）
+npm run pulltest        # 飞书增量拉取回归（30 项，假飞书接口）
 ```
 
 `selftest` 只测解析规则。`flowtest` 会**另起一个隔离实例**（独立 data 目录、
@@ -149,6 +150,10 @@ npm run flowtest        # 端到端流程测试（105 项，见下）
 入库与去重、停用闸门、演示推送、查询与聚合、SSE、凭证配置、调度、改密码、
 登录限流、静态资源，最后直接读 SQLite 核对落库结果。不碰你的 `data/`。
 退出码非 0 即有用例失败。
+
+`pulltest` 把 `globalThis.fetch` 换成一个假飞书接口，跑 `server/checkin_pull.js`
+的真代码，验证增量拉取：首次全量、增量只翻一页、`start_time` 被忽略时的降序兜底、
+换群重置、显式全量重建、水位线不回退与时钟回拨。不需要真令牌，不碰真实 API。
 
 解析两类卡片：`📊 贴吧签到结果`（总数/成功/失败）与 `📊 色花堂自动签到`
 （登录/回复/签到 三项状态 + 耗时）。
@@ -258,6 +263,29 @@ curl http://localhost:3000/api/scheduler               # 查看执行状态与�
   留一把 `/api/ingest` 的鉴权 Key 既没用、又等于给签到看板留了个可被灌假数据的入口。
   页面上的 Key 位显示「无需 Key」，取 Key 的接口对它返回 404
 
+### 增量拉取（水位线）
+
+拉取不是每轮把整个群重扫一遍，而是只问飞书「上次拉到的时间点之后有什么」：
+
+- **水位线**存在 `data/feishu_pull_state.json`，记着「哪个群 + 拉到哪了」。
+  下次拉取带上 `start_time`，由飞书服务端把旧消息滤掉 —— 通常**一页就结束**，
+  与群里总共有多少条消息无关
+- **`start_time` 往前回退 1 小时**（`PULL_OVERLAP_SEC`，可配）。飞书没写清这个参数是
+  开区间还是闭区间，消息也可能延迟到达，所以刻意多退一点；多拉出来的重复由
+  `UNIQUE(source_id, event_id)` 幂等吸收，成本为零 —— 宁可多拉，不可漏拉
+- **万一飞书没采纳 `start_time`**，第一页就会被识破（返回里出现了更早的消息），
+  随即改成降序从最新往回翻、碰到不比水位线新的就停。没这层兜底的话，
+  参数一失效就悄悄退化成「每轮翻完整群」，而且很难察觉
+- **换群自动全量**：水位线连带记着群 ID，换了群就用不上，自动从头拉
+- **停机自动补齐**：停机三天后重启，`start_time` 还是三天前那个点，缺口自然补回来
+- **水位线只在完整翻完后才推**：中途撞上翻页上限就下次重来，宁可浪费一次请求也不跳数据
+
+需要重扫全群时（换群之后、或怀疑漏了数据），点页面上的**「全量重建」**，
+或 `curl -X POST /api/scheduler/run -d '{"full":true}'`。重复数据会自动去重，不会算两次。
+
+`npm run pulltest` 用一个假飞书接口把上面这些分支全跑一遍（含「start_time 被忽略」
+这种线上很难复现的场景），跑的是真代码，不需要真令牌。
+
 ### 为什么去掉了「脚本推送」
 
 早期形态是：定时器 spawn 一个子进程跑 `scripts/parse_checkin.js --push`，脚本再 HTTP POST 回
@@ -325,6 +353,7 @@ server/checkin_pull.js 飞书群拉取 + 直写入库（进程内，不经 HTTP�
 server/ttshitu.js      TT识图余额 + 今日识别次数推算（快照 data/ttshitu_usage.json，10 分钟后台采样）
 server/capsolver.js    CapSolver 余额 + 今日消耗推算（快照 data/capsolver_usage.json，10 分钟后台采样）
 scripts/selftest.js    解析规则单测入口
+scripts/pulltest.js    飞书增量拉取回归（假飞书接口，跑真拉取代码）
 scripts/flowtest.js    端到端流程测试：起隔离实例把 HTTP 链路整条跑一遍
 scripts/release.sh     发版：同步四处版本号 → 跑测试 → 打标签 → 建 Release
 scripts/check-version.js 版本号一致性检查（发版脚本会在改前/改后各调一次）
@@ -392,6 +421,8 @@ rm -f data/*_usage.json      # 用量快照，删掉会自动重建
 | `PULL_START_DELAY` | `8` | 启动后首次拉取的延迟秒数 |
 | `PULL_RETRY_MIN` | `15` | 一轮失败后补跑的间隔分钟数 |
 | `PULL_TIMEOUT_MS` | `300000` | 单次拉取超时（毫秒） |
+| `PULL_OVERLAP_SEC` | `3600` | 增量起点往前回退多少秒（防漏；多拉的重复会被幂等吸收） |
+| `PULL_MAX_PAGES` | `200` | 单次拉取的翻页上限，撞上就下次继续，不推水位线 |
 
 单次批量上限在 `server/index.js` 的 `MAX_BATCH`。
 
