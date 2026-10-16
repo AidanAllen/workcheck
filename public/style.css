@@ -540,7 +540,7 @@ code.field {
 .log-row {
   display: grid;
   /* 两行卡片：①时间 状态码 来源 ……耗时 ②消息独占一行，允许完整换行。
-     来源列取 1fr —— 各行行宽相同，所以这一列天然对齐，长名字（飞书群-脚本推送）
+     来源列取 1fr —— 各行行宽相同，所以这一列天然对齐，长名字（飞书签到（内置））
      也有足够空间，不必像写死 88px 那样被省略号截尾巴。 */
   grid-template-columns: 62px 40px 1fr 52px;
   grid-template-areas: 'time status src ms' 'msg msg msg msg';
