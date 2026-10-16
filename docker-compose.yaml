@@ -14,7 +14,7 @@
 services:
   workcheck:
     build:
-      context: https://github.com/your-name/workcheck.git#main
+      context: https://github.com/AidanAllen/workcheck.git#main
       # 本地改代码、想直接构建当前目录时，把上面一行换成：
       # context: .
     image: workcheck:latest

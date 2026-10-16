@@ -393,8 +393,8 @@ node -e "const db=require('./server/db.js');db.db.prepare('DELETE FROM sessions'
 编排文件里已经可以直接用 GitHub 仓库地址当构建上下文，**不需要先把仓库 clone 下来**：
 
 ```bash
-# 1. 改掉 docker-compose.yaml 里 build.context 的仓库地址为你自己的仓库
-#    context: https://github.com/<你的用户名>/workcheck.git#main
+# 1. 下载编排文件（也可以直接 clone 整个仓库）
+curl -O https://raw.githubusercontent.com/AidanAllen/workcheck/main/docker-compose.yaml
 
 # 2. 构建并启动
 docker compose up -d --build
@@ -406,9 +406,12 @@ open http://<服务器IP>:3000/setup
 也可以不写 compose、直接一条命令（仓库要公开可访问）：
 
 ```bash
-docker build -t workcheck https://github.com/<你的用户名>/workcheck.git#main
+docker build -t workcheck https://github.com/AidanAllen/workcheck.git#main
 docker run -d --name workcheck -p 3000:3000 -v workcheck-data:/data workcheck
 ```
+
+> `docker-compose.yaml` 里的 `build.context` 已经指向本仓库。如果你 fork 了，
+> 记得把那一行改成自己的地址（分支用 `#` 指定）。
 
 要点：
 
