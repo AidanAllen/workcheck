@@ -6,14 +6,14 @@
 #   ./scripts/release.sh 1.1.0-rc.1      发预发布（GitHub 上会标 pre-release）
 #   ./scripts/release.sh 1.0.1 --dry-run 只检查、打印将做什么，不改任何东西
 #
-# 为什么要这个脚本：升一个版本要同步四处版本号（package.json、package-lock.json
-# 的两处、docker-compose.yaml 的两处），再走提交 / 打标签 / 建 Release。
+# 为什么要这个脚本：升一个版本要同步多处版本号（package.json、package-lock.json
+# 的两处；docker-compose.yaml 钉版本标签时还有两处），再走提交 / 打标签 / 建 Release。
 # 手工做漏一处的后果都不轻 —— 尤其是漏了 compose 的 context，
 # 用户下到的还是旧版本的编排文件。
 #
 # 脚本会做到：
 #   1. 前置检查（工作区干净、分支正确、标签不存在、版本号格式）
-#   2. 四处版本号一起改，并断言改后一致
+#   2. 版本号一起改，并断言改后一致
 #   3. 跑 selftest，不过就中止
 #   4. 提交 + 推 main
 #   5. 打附注标签 + 推送
@@ -125,7 +125,7 @@ info "== 同步版本号 =="
 # 只替换前 N 次出现（N=0 表示不限），避免动到依赖包自己的 version 字段：
 #   package.json      —— 1 处
 #   package-lock.json —— 2 处（顶层 + packages[""]），之后都是依赖的 version
-#   docker-compose.yaml —— 4 处，全都要改，所以传 0
+#   docker-compose.yaml —— 4 处，全都要改，所以传 0（仅在钉版本模式下）
 replace_versions() {
   local file="$1" limit="$2"
   node -e '
@@ -155,24 +155,42 @@ replace_versions() {
 if [ "$DRY_RUN" = "0" ]; then
   n1="$(replace_versions package.json 1)"
   n2="$(replace_versions package-lock.json 2)"
-  n3="$(replace_versions docker-compose.yaml 0)"
   info "  package.json        $n1 处"
   info "  package-lock.json   $n2 处"
-  info "  docker-compose.yaml $n3 处"
 
   # 替换次数断言：数量对不上说明文件结构变了（有人加了版本号、或正则误伤）
   [ "$n1" = "1" ] || die "package.json 替换了 $n1 处，应为 1 处"
   [ "$n2" = "2" ] || die "package-lock.json 替换了 $n2 处，应为 2 处"
-  [ "$n3" = "4" ] || die "docker-compose.yaml 替换了 $n3 处，应为 4 处（context / image / 两处注释）"
 
-  # 替换完再由独立脚本核对一遍：四处是否齐全、是否一致、是否等于目标版本。
+  # compose 有两种形态，处理方式不同：
+  #   钉版本（#vX.Y.Z + :vX.Y.Z）—— 跟着一起改，改不到 4 处说明文件结构变了
+  #   跟分支（#main   + :main  ）—— 里面没有版本号，跳过。
+  #     （跟分支时若硬要替换，check-version 会拿 "main" 去和 package.json 的
+  #      版本号比，永远不一致，发版直接中止）
+  COMPOSE_MODE="$(node -e '
+    const fs = require("fs");
+    const t = fs.readFileSync("docker-compose.yaml", "utf8");
+    const ctx = t.match(/^\s*context:.*#([\w.\-]+)\s*$/m);
+    const re = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/;
+    process.stdout.write(ctx && re.test(ctx[1]) ? "tag" : "branch");
+  ')"
+  if [ "$COMPOSE_MODE" = "tag" ]; then
+    n3="$(replace_versions docker-compose.yaml 0)"
+    info "  docker-compose.yaml $n3 处"
+    [ "$n3" = "4" ] || die "docker-compose.yaml 替换了 $n3 处，应为 4 处（context / image / 两处注释）"
+  else
+    info "  docker-compose.yaml 跳过（跟分支模式，文件里没有版本号）"
+  fi
+
+  # 替换完再由独立脚本核对一遍：各处是否齐全、是否一致、是否等于目标版本。
   # 逻辑不在这里重写 —— 检查规则（尤其「不能直接 grep，依赖包自己的 version
   # 也可能是 1.0.0」这个坑）只在 check-version.js 里维护一份，避免两处漂移。
   if ! node scripts/check-version.js "$VERSION"; then
     die "版本号同步失败（工作区改动还在，用 git checkout -- . 撤销）"
   fi
 else
-  info "  [dry-run] 将把 package.json(1) / package-lock.json(2) / docker-compose.yaml(4) 改为 $VERSION"
+  info "  [dry-run] 将把 package.json(1) / package-lock.json(2) 改为 $VERSION"
+  info "  [dry-run] compose 若处于钉版本模式，还会同步其中的 4 处"
 fi
 
 # ---------------------------------------------------------------- 跑测试
