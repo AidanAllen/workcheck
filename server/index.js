@@ -589,16 +589,33 @@ function demoEvent() {
 app.post('/api/demo/push', adminGuard, (req, res) => {
   const count = Math.min(Math.max(Number((req.body && req.body.count) || 1), 1), 50);
   const id = Number((req.body && req.body.sourceId) || 0);
-  // 默认挑第一个「用户自己建的」来源：内置来源是飞书签到挂数据用的，
+  // 默认挑第一个「用户自己建的、且启用中」的来源：内置来源是飞书签到挂数据用的，
   // 拿它看演示数据会把两类不相干的数据混在同一条趋势里。
-  // 优先选持有 Key 的（那才是「可推送」的来源），没有再退回任意非内置来源。
+  // 自动挑选必须带上 enabled 判断 —— 少了它，刚被停用的来源照样会被演示数据灌进去，
+  // 用户以为「停用」把入口关了，其实只关了正式推送那条。
+  // 优先选持有 Key 的（那才是「可推送」的来源），没有再退回任意启用中的非内置来源。
   const all = S.listSources.all();
   const source =
     (id && S.getSourceById.get(id)) ||
-    all.find((s) => s.name !== SOURCE_NAME && s.api_key) ||
-    all.find((s) => s.name !== SOURCE_NAME) ||
-    all[0];
-  if (!source) return res.status(400).json({ ok: false, error: '还没有创建任何来源' });
+    all.find((s) => s.name !== SOURCE_NAME && s.enabled && s.api_key) ||
+    all.find((s) => s.name !== SOURCE_NAME && s.enabled) ||
+    null;
+  if (!source) return res.status(400).json({ ok: false, error: '还没有启用中的来源，先新建一个或把停用的来源启用' });
+
+  // 和 /api/ingest 同一道闸：停用的来源不接受任何入库，测试推送也不例外
+  if (!source.enabled) {
+    writeLog({
+      ts: new Date().toISOString(),
+      sourceId: source.id,
+      sourceName: source.name,
+      status: 403,
+      ok: false,
+      latencyMs: 1,
+      ip: '127.0.0.1',
+      message: '该来源已被停用（测试推送）',
+    });
+    return res.status(403).json({ ok: false, error: '该来源已被停用' });
+  }
   const events = Array.from({ length: count }, demoEvent);
   const out = ingestFor(source, events, '127.0.0.1');
   return res.status(out.status).json(out.body);
