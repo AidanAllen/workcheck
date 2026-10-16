@@ -213,7 +213,7 @@ PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo '')"
 
 classify() {
   local range="$1"
-  local feat="" fix="" ui="" docs="" other=""
+  local feat="" fix="" ui="" docs="" perf="" chore="" other=""
   # 从旧到新列出，每行是 subject（去掉 hash）
   while IFS= read -r subject; do
     [ -n "$subject" ] || continue
@@ -222,6 +222,8 @@ classify() {
       fix:*|fix\(*)       fix="$fix- ${subject#fix: }"$'\n' ;;
       ui:*|ui\(*)         ui="$ui- ${subject#ui: }"$'\n' ;;
       docs:*|docs\(*)     docs="$docs- ${subject#docs: }"$'\n' ;;
+      perf:*|perf\(*)     perf="$perf- ${subject#perf: }"$'\n' ;;
+      chore:*|chore\(*)   chore="$chore- ${subject#chore: }"$'\n' ;;
       refactor:*|refactor\(*) other="$other- ${subject#refactor: }"$'\n' ;;
       *)                  other="$other- $subject"$'\n' ;;
     esac
@@ -231,7 +233,9 @@ classify() {
   [ -n "$feat" ] && out="$out"$'\n'"**新功能**"$'\n\n'"$feat"
   [ -n "$fix" ]  && out="$out"$'\n'"**修复**"$'\n\n'"$fix"
   [ -n "$ui" ]   && out="$out"$'\n'"**界面**"$'\n\n'"$ui"
+  [ -n "$perf" ] && out="$out"$'\n'"**优化**"$'\n\n'"$perf"
   [ -n "$docs" ] && out="$out"$'\n'"**文档**"$'\n\n'"$docs"
+  [ -n "$chore" ] && out="$out"$'\n'"**杂项**"$'\n\n'"$chore"
   [ -n "$other" ] && out="$out"$'\n'"**其他**"$'\n\n'"$other"
   printf '%s' "$out" | sed '/^$/N;/^\n$/D'
 }
