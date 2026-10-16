@@ -182,6 +182,16 @@ try { var t = localStorage.getItem('workcheck.theme'); if (t && t !== 'sakura') 
         </div>
         <div id="checkRedirectResult" style="margin-top:8px;line-height:1.8"></div>
       </div>
+      <div class="row-actions" style="margin-top:10px">
+        <a class="btn mini primary" id="fsConsoleLink" href="https://open.feishu.cn/app"
+           target="_blank" rel="noopener noreferrer">去开放平台配置 ↗</a>
+        <button class="btn mini" id="btnCopyRedirect">复制回调地址</button>
+        <span class="panel-hint" id="fsConsoleHint">填了 App ID 会直接进该应用的「安全设置」</span>
+      </div>
+      <div class="setup-note" style="margin-top:8px">
+        开放平台里的位置：<b>应用详情 → 开发配置 → 安全设置 → 重定向 URL → 添加</b>。
+        改完记得<b>发布一个新版本</b>，否则白名单还是旧的。
+      </div>
       <div class="row-actions" style="margin-top:12px">
         <button class="btn primary" data-save="feishu">保存飞书配置</button>
         <button class="btn danger" data-reset="feishu">清除</button>

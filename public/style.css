@@ -191,11 +191,15 @@ body {
 }
 .nav-link:hover { background: var(--accent-soft); transform: translateY(-1px); box-shadow: var(--shadow); }
 a.btn { text-decoration: none; display: inline-flex; align-items: center; }
-/* 「飞书授权 / 重新授权」是 <a> 而不是 <button>，套不上下面那批带 button 前缀的
-   .btn 规则（button.btn.primary），会掉回浏览器默认链接色。
-   这里单独把它的字色定成与面板标题同一个变量 —— 雨夜主题下就是 #e9eff7 */
-a.btn.primary { color: var(--text); }
-a.btn.primary:hover { color: var(--accent); }
+/* 链接形态的主按钮（「飞书授权 / 重新授权」「去开放平台配置」都是 <a>）：
+   下面那批 button.btn.primary 规则带 button 前缀，<a> 套不上 —— 不补的话既没有
+   渐变底、字色也会掉回浏览器默认链接色。这里把渐变底和字色一起补全。 */
+a.btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  border-color: transparent; color: var(--accent-on);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+a.btn.primary:hover { color: var(--accent-on); transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
 
 .setup-note {
   font-size: 13px; color: var(--text-2); line-height: 1.9;

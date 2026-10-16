@@ -402,6 +402,50 @@ function fillGroup(name, view) {
     st.textContent = view.configured ? '已配置' : '未配置';
     st.style.color = view.configured ? 'var(--ok)' : 'var(--warn)';
   }
+  if (name === 'feishu') syncFeishuConsole(); // App ID 可能刚被填进来，跳转链接要跟着变
+}
+
+/**
+ * 开放平台上配「重定向 URL」的地方。填了 App ID 就直达该应用的安全设置页，
+ * 省得用户在应用列表里一个个点；没填只能给个列表入口。
+ */
+function feishuConsoleUrl() {
+  const appId = ($('fsAppId').value || '').trim();
+  return appId
+    ? `https://open.feishu.cn/app/${encodeURIComponent(appId)}/security`
+    : 'https://open.feishu.cn/app';
+}
+
+function syncFeishuConsole() {
+  const a = $('fsConsoleLink');
+  if (!a) return;
+  const appId = ($('fsAppId').value || '').trim();
+  a.href = feishuConsoleUrl();
+  const hint = $('fsConsoleHint');
+  if (hint) {
+    hint.textContent = appId
+      ? '已带上 App ID，直达该应用的「安全设置 → 重定向 URL」'
+      : '还没填 App ID，先到应用列表里选应用';
+  }
+}
+
+/**
+ * 复制**当前实际生效**的回调地址 —— 输入框留空时用的是默认值，
+ * 而默认值里的 localhost 在远程部署时是错的，所以用当前访问地址拼一个更准。
+ */
+async function copyRedirect() {
+  const input = $('fsRedirect');
+  const val = (input.value || '').trim() || `${location.origin}/feishu/callback`;
+  try {
+    await navigator.clipboard.writeText(val);
+    toast('回调地址已复制：' + val);
+  } catch (_) {
+    // 非 HTTPS / 无剪贴板权限时的退路：填进输入框并选中，用户手动复制
+    input.value = val;
+    input.focus();
+    input.select();
+    toast('已选中，请按 Ctrl+C 复制');
+  }
 }
 
 async function loadCredentials() {
@@ -591,6 +635,10 @@ function bind() {
   $('redirectInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') checkRedirect();
   });
+
+  // 回调地址：跳转开放平台 + 复制地址（跳过去之后要粘的就是这个值）
+  $('fsAppId').addEventListener('input', syncFeishuConsole);
+  $('btnCopyRedirect').addEventListener('click', copyRedirect);
 
   $('btnPullNow').addEventListener('click', pullNow);
 
