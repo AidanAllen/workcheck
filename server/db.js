@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS sources (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL UNIQUE,
-  api_key     TEXT NOT NULL UNIQUE,
+  -- 可空：内置来源（飞书签到直写入库用）不经过 HTTP，也就不该持有推送 Key。
+  -- SQLite 的 UNIQUE 允许多个 NULL 并存，正好满足「多个来源都可以没有 Key」。
+  api_key     TEXT UNIQUE,
   enabled     INTEGER NOT NULL DEFAULT 1,
   created_at  TEXT NOT NULL
 );
@@ -50,6 +52,37 @@ CREATE TABLE IF NOT EXISTS access_logs (
 CREATE INDEX IF NOT EXISTS idx_logs_ts ON access_logs(ts);
 `);
 
+/**
+ * 迁移：老库的 sources.api_key 是 NOT NULL，改成可空。
+ *
+ * SQLite 不支持 ALTER COLUMN，只能重建表再拷数据。这里用
+ * `PRAGMA table_info` 探一下 notnull 标志，只在确实需要时重建，
+ * 避免每次启动都白跑一遍 DDL。
+ */
+function migrateSourcesApiKeyNullable() {
+  const col = db.prepare('PRAGMA table_info(sources)').all().find((c) => c.name === 'api_key');
+  if (!col || col.notnull === 0) return; // 新库或已迁过
+
+  db.exec(`
+    BEGIN;
+    CREATE TABLE sources_new (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL,
+      slug        TEXT NOT NULL UNIQUE,
+      api_key     TEXT UNIQUE,
+      enabled     INTEGER NOT NULL DEFAULT 1,
+      created_at  TEXT NOT NULL
+    );
+    INSERT INTO sources_new (id, name, slug, api_key, enabled, created_at)
+      SELECT id, name, slug, api_key, enabled, created_at FROM sources;
+    DROP TABLE sources;
+    ALTER TABLE sources_new RENAME TO sources;
+    COMMIT;
+  `);
+  console.log('  已迁移 sources 表：api_key 改为可空（内置来源不再需要推送 Key）');
+}
+migrateSourcesApiKeyNullable();
+
 const S = {
   insertSource: db.prepare('INSERT INTO sources (name, slug, api_key, enabled, created_at) VALUES (?,?,?,1,?)'),
   listSources: db.prepare('SELECT * FROM sources ORDER BY id'),
@@ -57,6 +90,7 @@ const S = {
   getSourceById: db.prepare('SELECT * FROM sources WHERE id = ?'),
   deleteSource: db.prepare('DELETE FROM sources WHERE id = ?'),
   toggleSource: db.prepare('UPDATE sources SET enabled = ? WHERE id = ?'),
+  clearSourceKey: db.prepare('UPDATE sources SET api_key = NULL WHERE id = ?'),
 
   insertEvent: db.prepare(
     'INSERT OR IGNORE INTO raw_events (source_id, event_id, received_at, event_time, size, payload) VALUES (?,?,?,?,?,?)'
@@ -153,12 +187,20 @@ const slugify = (name) => {
   return base || 'source';
 }
 
-function createSource(name) {
+/**
+ * 建一个来源。
+ *
+ * @param {string} name
+ * @param {{withKey?:boolean}} [opts] withKey 默认 true。
+ *   内置来源（飞书签到直写入库）传 false —— 它不经过 HTTP，没有 Key 才符合实际：
+ *   页面上不会出现一把永远用不上的 Key，也少一个「被人拿到就能往里塞数据」的入口。
+ */
+function createSource(name, opts = {}) {
   const clean = String(name || '').trim() || '未命名来源';
   let slug = slugify(clean);
   const exists = db.prepare('SELECT COUNT(*) c FROM sources WHERE slug = ?').get(slug).c;
   if (exists) slug = `${slug}-${crypto.randomBytes(2).toString('hex')}`;
-  const apiKey = `sk_${crypto.randomBytes(16).toString('hex')}`;
+  const apiKey = opts.withKey === false ? null : `sk_${crypto.randomBytes(16).toString('hex')}`;
   const info = S.insertSource.run(clean, slug, apiKey, new Date().toISOString());
   return S.getSourceById.get(info.lastInsertRowid);
 }

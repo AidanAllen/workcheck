@@ -651,6 +651,12 @@ button.btn:disabled:hover {
 }
 .key-box:hover { border-color: var(--accent); color: var(--accent); }
 .key-box.revealed { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+/* 内置来源不持有推送 Key：不是可点开的凭据，样式上要一眼看出来「这里没有东西可看」 */
+.key-box.none {
+  cursor: default; color: var(--text-3);
+  background: transparent; border-style: dashed;
+}
+.key-box.none:hover { border-color: var(--border); color: var(--text-3); }
 .tag { font-size: 11px; padding: 3px 12px; border-radius: var(--radius-pill); font-weight: 600; }
 .tag.on { background: var(--ok-soft); color: var(--ok); }
 .tag.off { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }

@@ -433,8 +433,13 @@ app.get('/api/stream/logs', (req, res) => {
     加的掩码形同虚设。需要明文时走下面的 /api/sources/:id/key（同样在 guard 之下） */
 function publicSource(s) {
   const { api_key, ...rest } = s;
-  // 内置来源是服务进程拉飞书数据直写入库时挂数据用的，不提供推送、也不允许删
-  return { ...rest, api_key_masked: mask(api_key), builtin: s.name === SOURCE_NAME };
+  // 内置来源是服务进程拉飞书数据直写入库时挂数据用的：不提供推送、不持有 Key、也不允许删
+  return {
+    ...rest,
+    api_key_masked: api_key ? mask(api_key) : '',
+    hasKey: !!api_key,
+    builtin: s.name === SOURCE_NAME,
+  };
 }
 
 app.get('/api/sources', adminGuard, (_req, res) => {
@@ -449,6 +454,7 @@ function mask(key) {
 app.get('/api/sources/:id/key', adminGuard, (req, res) => {
   const src = S.getSourceById.get(Number(req.params.id));
   if (!src) return res.status(404).json({ ok: false, error: '来源不存在' });
+  if (!src.api_key) return res.status(404).json({ ok: false, error: '该来源不持有推送 Key' });
   return res.json({ ok: true, apiKey: src.api_key });
 });
 
@@ -473,7 +479,10 @@ app.delete('/api/sources/:id', adminGuard, (req, res) => {
   const id = Number(req.params.id);
   const src = S.getSourceById.get(id);
   if (src && src.name === SOURCE_NAME) {
-    return res.status(400).json({ ok: false, error: '这是内置来源（飞书签到直写入库用），不能删除' });
+    return res.status(400).json({
+      ok: false,
+      error: '这是内置来源（飞书签到的数据挂在它下面），不能删除。想让签到数据换来源请直接改代码里的 SOURCE_NAME，否则历史报文会散在两个 source_id 上',
+    });
   }
   const removed = store.deleteSource(id);
   if (!removed) return res.status(404).json({ ok: false, error: '来源不存在' });
@@ -529,11 +538,14 @@ app.post('/api/demo/push', adminGuard, (req, res) => {
   const count = Math.min(Math.max(Number((req.body && req.body.count) || 1), 1), 50);
   const id = Number((req.body && req.body.sourceId) || 0);
   // 默认挑第一个「用户自己建的」来源：内置来源是飞书签到挂数据用的，
-  // 拿它看演示数据会把两类不相干的数据混在同一条趋势里
+  // 拿它看演示数据会把两类不相干的数据混在同一条趋势里。
+  // 优先选持有 Key 的（那才是「可推送」的来源），没有再退回任意非内置来源。
+  const all = S.listSources.all();
   const source =
     (id && S.getSourceById.get(id)) ||
-    S.listSources.all().find((s) => s.name !== SOURCE_NAME) ||
-    S.listSources.all()[0];
+    all.find((s) => s.name !== SOURCE_NAME && s.api_key) ||
+    all.find((s) => s.name !== SOURCE_NAME) ||
+    all[0];
   if (!source) return res.status(400).json({ ok: false, error: '还没有创建任何来源' });
   const events = Array.from({ length: count }, demoEvent);
   const out = ingestFor(source, events, '127.0.0.1');

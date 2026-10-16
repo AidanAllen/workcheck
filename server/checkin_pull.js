@@ -49,6 +49,9 @@ function writeLog(row) {
  * 取（必要时创建）内置来源。
  * 用户删掉「飞书」那个推送来源是他的自由，但签到数据仍要落在某个来源下，所以这里按需重建。
  * 即便被删后重建换了 id，看板聚合时会按 eventId 再去重一次，不会显示成两份。
+ *
+ * 这个来源走的是进程内 insertMany，不经过 HTTP，所以**不持有推送 Key**。
+ * 老版本建的来源可能带一把用不上的 Key（`sk_…`），这里顺手清掉。
  */
 function ensureSource() {
   const hit = S.listSources.all().find((s) => s.name === SOURCE_NAME);
@@ -57,9 +60,10 @@ function ensureSource() {
       S.toggleSource.run(1, hit.id);
       hit.enabled = 1;
     }
+    if (hit.api_key) S.clearSourceKey.run(hit.id);
     return hit;
   }
-  return createSource(SOURCE_NAME);
+  return createSource(SOURCE_NAME, { withKey: false });
 }
 
 /** 拉取群消息（按创建时间升序翻页） */

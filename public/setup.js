@@ -142,15 +142,18 @@ function renderSourceList() {
   box.innerHTML = state.sources
     .map((s) => {
       const full = state.keys[s.id];
-      // 内置来源（飞书签到直写入库用的那一个）不能删：删了下轮拉取会重建一个新来源，
-      // 历史报文就挂在了两个 source_id 上
-      const builtin = s.builtin ? '<span class="tag on" title="服务进程直接入库用，不需要也不提供推送 Key">内置</span>' : '';
+      // 内置来源（飞书签到直写入库用的那一个）：不能删，也没有推送 Key。
+      // 它的数据是服务进程直接 insertMany 写进来的，压根不走 HTTP，给把 Key 反而是个多余的入口。
+      const builtin = s.builtin ? '<span class="tag on" title="服务进程直接从飞书拉取入库，不走 HTTP，因此不持有推送 Key">内置</span>' : '';
+      const keyCell = s.builtin
+        ? '<span class="key-box none" title="数据由服务进程直接写入，无需推送 Key">无需 Key</span>'
+        : `<span class="key-box${full ? ' revealed' : ''}" data-act="key" title="点击显示并复制完整 API Key">${
+            full ? escapeHtml(full) : escapeHtml(s.api_key_masked || '••••••••')
+          }</span>`;
       return `<div class="src-row" data-id="${s.id}">
       <span class="src-name">${escapeHtml(s.name)}</span>
       ${builtin}
-      <span class="key-box${full ? ' revealed' : ''}" data-act="key" title="点击显示并复制完整 API Key">${
-        full ? escapeHtml(full) : escapeHtml(s.api_key_masked || '••••••••')
-      }</span>
+      ${keyCell}
       <span class="tag ${s.enabled ? 'on' : 'off'}">${s.enabled ? '启用' : '停用'}</span>
       <span class="spacer"></span>
       <button class="btn mini" data-act="toggle">${s.enabled ? '停用' : '启用'}</button>
@@ -172,10 +175,19 @@ function sampleBody() {
 }
 
 function buildSnippet() {
-  const src = state.sources.find((s) => s.enabled && !s.builtin) || state.sources.find((s) => !s.builtin) || state.sources[0];
+  // 只挑「持有 Key 的普通来源」：内置来源没有 Key，拿它做示例会生成一段注定 401 的代码。
+  // 兜底不再退回 sources[0]（那可能就是内置来源），宁可显式提示用户先去建一个来源。
+  const src =
+    state.sources.find((s) => s.enabled && s.hasKey) ||
+    state.sources.find((s) => s.hasKey);
+
+  if (!src) {
+    return '// 还没有可用于推送的来源。\n// 先在左侧新建一个来源，拿到 API Key 后这里会自动生成对应的请求示例。';
+  }
+
   const host = location.origin;
   // 明文 key 只有点开某一行时才去单独取，示例代码也用这份缓存
-  const key = (src && state.keys[src.id]) || '<点上方 API Key 显示后自动填入>';
+  const key = state.keys[src.id] || '<点上方 API Key 显示后自动填入>';
   const body = sampleBody();
 
   if (state.lang === 'js') {
