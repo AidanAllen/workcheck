@@ -447,6 +447,26 @@ node -e "const db=require('./server/db.js');db.db.prepare('DELETE FROM sessions'
 
 > 提醒：如果外面套了 Nginx 反代，Node 这层看到的来源 IP 是 Nginx 的。**`ADMIN_TOKEN` 是唯一贯穿所有管理接口的静态凭证**，一旦设置就相当于永久后门，用完记得取消。
 
+## 手机端（安卓 App）
+
+手机上看这套看板有个专门的壳：**看板娘** —— 一个 Capacitor 7 安卓工程，
+里面只有一个 WebView 装着本站点。代码在**独立仓库**：
+
+> <https://github.com/AidanAllen/workcheck-app>
+
+分成两个仓库而不是放一个仓库的两个目录，是因为两边**没有任何共享代码**：
+App 只持有一个站点地址，一行后端代码都不引用；技术栈也不搭界
+（Node/SQLite 与 Gradle/Java 21）。更实际的原因是版本号 ——
+本仓库发版打的是 `v1.0.1` 这种标签，App 那边出 APK 的 CI 监听的也是 `v*`，
+而 **Git 标签全局唯一、不分分支**，挤在一个仓库里必然撞车。
+
+对使用者而言两边是完全解耦的：
+
+- App 不含任何业务页面，内容实时从服务器加载，**改网页不需要重新发 App 版本**
+- 站点地址首次启动在 App 里填（存本机 SharedPreferences），
+  同一个 APK 可以分发给不同的人，各自连到自己的站点
+- 网页端照常用 `npm run release` 发版，部署链路没有任何变化
+
 ## 部署
 
 ### 方式一：Docker（推荐）
