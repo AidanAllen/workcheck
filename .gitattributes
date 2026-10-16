@@ -1,0 +1,14 @@
+# 行尾统一。
+#
+# 为什么需要：Windows 的 git 默认 core.autocrlf=true，checkout 时会把文本
+# 转成 CRLF。shell 脚本一旦被转成 CRLF，在 Linux / macOS 上跑会报
+# `bash\r: No such file or directory` —— 而 release.sh 恰恰是在 Linux 上发版用的，
+# 中招的话症状还很难猜。这里显式钉成 LF，任何平台 checkout 都一样。
+#
+# 图片是二进制，交给 git 自动判断即可，不用声明。
+*.sh   text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf

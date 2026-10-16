@@ -260,6 +260,42 @@ curl http://localhost:3000/api/scheduler               # 查看执行状态与�
 npm run selftest
 ```
 
+## 发版
+
+一个版本号散在**三处文件、四个位置**，手工改漏一处的后果不轻 —— 尤其是漏了
+`docker-compose.yaml` 的 `context`，用户下到的编排文件还指着旧版本，部署出来就是旧代码。
+所以发版走脚本：
+
+```bash
+npm run release 1.0.1              # 正式版
+npm run release 1.1.0-rc.1         # 预发布（GitHub 上会标 pre-release）
+bash scripts/release.sh 1.0.1 --dry-run   # 只检查、打印将做什么，不改任何东西
+```
+
+脚本按顺序做六件事，任一步失败就停：
+
+1. **前置检查** —— 版本号格式（semver，允许 `-rc.1`）、工作区干净、在 `main` 上、标签不存在、与远程同步，以及**当前四处版本号本身是否自洽**（不自洽就先修再来发）
+2. **同步四处版本号** —— `package.json`(1 处) / `package-lock.json`(2 处) / `docker-compose.yaml`(4 处：context、image、两处注释)，改完再由 `check-version.js` 复核一致
+3. **跑 `selftest`** —— 不过就中止
+4. **提交并推送 `main`**
+5. **打附注标签并推送**
+6. **按 `release-notes-template.md` 生成正文**（本版变化从 `<上一标签>..HEAD` 的提交历史按 `feat:` / `fix:` / `ui:` / `docs:` / `refactor:` 前缀自动归类）+ `gh release create`
+
+单独检查版本号一致性：
+
+```bash
+npm run check-version          # 只检查
+npm run check-version 1.0.1    # 额外断言等于 1.0.1
+```
+
+改动前建议看一遍将做什么，`--dry-run` 不碰任何文件、不建标签、不推远程。
+
+发布后确认 Release 页面上的 compose 链接可用：
+
+```bash
+curl -sI https://raw.githubusercontent.com/AidanAllen/workcheck/refs/tags/v1.0.1/docker-compose.yaml | head -1
+```
+
 ## 目录结构
 
 ```
@@ -276,6 +312,9 @@ server/checkin_pull.js 飞书群拉取 + 直写入库（进程内，不经 HTTP�
 server/ttshitu.js      TT识图余额 + 今日识别次数推算（快照 data/ttshitu_usage.json，10 分钟后台采样）
 server/capsolver.js    CapSolver 余额 + 今日消耗推算（快照 data/capsolver_usage.json，10 分钟后台采样）
 scripts/selftest.js    解析规则单测入口
+scripts/release.sh     发版：同步四处版本号 → 跑测试 → 打标签 → 建 Release
+scripts/check-version.js 版本号一致性检查（发版脚本会在改前/改后各调一次）
+scripts/release-notes-template.md Release 正文模板（占位符 <!--CHANGELOG--> 与 __VERSION__）
 public/               前端看板（原生 HTML/CSS/JS，不依赖 CDN）
   ├─ style.css        布局与组件样式（不含主题，:root 为默认主题兜底）
   ├─ common.js        公共函数 + 主题注册表 THEMES / applyTheme / initThemeSwitcher

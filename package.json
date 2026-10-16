@@ -6,7 +6,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "selftest": "node scripts/selftest.js"
+    "selftest": "node scripts/selftest.js",
+    "check-version": "node scripts/check-version.js",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "express": "^4.21.2",

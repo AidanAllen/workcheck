@@ -11,6 +11,9 @@ node_modules/
 *.log
 npm-debug.log*
 
+# 发版脚本的临时文件（正常跑完会自己删，这里是兜底：中途被强杀时会残留）
+.release-notes.*.tmp
+
 # 本地会话与工作记录
 .workbuddy/
 
