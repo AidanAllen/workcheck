@@ -141,7 +141,14 @@ curl -X POST http://localhost:3000/api/ingest \
 
 ```bash
 npm run selftest        # 解析规则单测（10 个用例）
+npm run flowtest        # 端到端流程测试（105 项，见下）
 ```
+
+`selftest` 只测解析规则。`flowtest` 会**另起一个隔离实例**（独立 data 目录、
+独立端口、关掉定时拉取），把 HTTP 链路整条跑一遍：鉴权与会话、来源管理、
+入库与去重、停用闸门、演示推送、查询与聚合、SSE、凭证配置、调度、改密码、
+登录限流、静态资源，最后直接读 SQLite 核对落库结果。不碰你的 `data/`。
+退出码非 0 即有用例失败。
 
 解析两类卡片：`📊 贴吧签到结果`（总数/成功/失败）与 `📊 色花堂自动签到`
 （登录/回复/签到 三项状态 + 耗时）。
@@ -318,6 +325,7 @@ server/checkin_pull.js 飞书群拉取 + 直写入库（进程内，不经 HTTP�
 server/ttshitu.js      TT识图余额 + 今日识别次数推算（快照 data/ttshitu_usage.json，10 分钟后台采样）
 server/capsolver.js    CapSolver 余额 + 今日消耗推算（快照 data/capsolver_usage.json，10 分钟后台采样）
 scripts/selftest.js    解析规则单测入口
+scripts/flowtest.js    端到端流程测试：起隔离实例把 HTTP 链路整条跑一遍
 scripts/release.sh     发版：同步四处版本号 → 跑测试 → 打标签 → 建 Release
 scripts/check-version.js 版本号一致性检查（发版脚本会在改前/改后各调一次）
 scripts/release-notes-template.md Release 正文模板（占位符 <!--CHANGELOG--> 与 __VERSION__）
