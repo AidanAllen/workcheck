@@ -17,6 +17,12 @@ npm-debug.log*
 # 流程测试的临时实例数据（npm run flowtest 跑完自己删，这里是兜底）
 .tmp-flow/
 
+# 增量拉取测试的临时数据目录（npm run pulltest 跑完自己删，这里是兜底）
+.tmp-pulltest/
+
+# commit message 临时文件（用 heredoc + git commit -F 时会先落到项目根）
+.commit-msg.tmp
+
 # 本地会话与工作记录
 .workbuddy/
 
