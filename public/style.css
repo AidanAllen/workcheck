@@ -642,6 +642,29 @@ button.btn.primary {
 button.btn.primary:hover { color: var(--accent-on); transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
 button.btn.danger:hover { border-color: var(--fail); color: var(--fail); }
 button.btn.mini { padding: 4px 12px; font-size: 12px; }
+
+/* 手机上的点按面积：mini 按钮在桌面只有 26px 高，手指瞄不准。
+   媒体查询不提高特异性，所以这一段必须写在上面的桌面规则之后才盖得住。 */
+@media (max-width: 640px) {
+  button.btn.mini, a.btn.mini:link, a.btn.mini:visited {
+    padding: 9px 14px; font-size: 12.5px; min-height: 38px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* 翻页「‹ 上一页 / 下一页 ›」撑到 40 高，别让手指去瞄 26px 高的目标 */
+  .pager .btn.mini { min-height: 40px; padding: 0 14px; }
+  /* 日历翻月只有一个字符，撑成 40×40 的方块 */
+  .cal-head .btn.mini { min-width: 40px; min-height: 40px; padding: 0; }
+  /* 标准按钮与输入框桌面是 33px，同样加到 40（mini 的特异性更高，保持上面的 38） */
+  button.btn, a.btn:link, a.btn:visited,
+  input[type='text'], input[type='number'], input[type='password'] {
+    min-height: 40px;
+  }
+  /* 顶栏主题切换器 30px → 38px */
+  .segmented.small button { padding: 10px 12px; font-size: 12.5px; }
+  /* 面板内的分段控件 34px → 38px；横向 padding 保持 4px，宽度仍靠 flex 等分 */
+  .panel-head .segmented button { padding: 11px 4px; }
+}
+
 button.btn:disabled { opacity: .38; cursor: not-allowed; }
 button.btn:disabled:hover {
   border-color: var(--border-strong); color: var(--text);
