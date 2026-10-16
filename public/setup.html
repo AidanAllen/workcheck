@@ -23,12 +23,41 @@ try { var t = localStorage.getItem('workcheck.theme'); if (t && t !== 'sakura') 
     <h1>🎀 接入配置</h1>
   </div>
   <div class="controls">
-    <span class="panel-hint" id="authUser" hidden></span>
+    <button class="btn mini" id="authUser" hidden title="点击修改密码"></button>
     <button class="btn mini" id="btnLogout" hidden>退出登录</button>
     <div class="segmented small theme-switch" id="themeSwitch" role="group" aria-label="主题切换"></div>
     <a class="nav-link" href="/">← 返回看板</a>
   </div>
 </header>
+
+<!-- 改密码弹层：点右上角「已登录 xxx」打开。
+     keydown / 点遮罩空白处关闭。 -->
+<div class="auth-gate" id="pwGate" hidden>
+  <form class="auth-card panel" id="pwForm">
+    <h2 class="panel-title">🔑 修改密码</h2>
+    <p class="auth-desc">
+      改完之后，<b>其它设备上的登录状态会被踢掉</b>，当前这台不用重新登录。
+    </p>
+    <label class="auth-field">
+      <span>当前密码</span>
+      <input type="password" id="pwOld" autocomplete="current-password" placeholder="用来确认是你本人">
+    </label>
+    <label class="auth-field">
+      <span>新密码</span>
+      <input type="password" id="pwNew" autocomplete="new-password" placeholder="至少 6 位">
+    </label>
+    <label class="auth-field">
+      <span>确认新密码</span>
+      <input type="password" id="pwNew2" autocomplete="new-password" placeholder="再输一遍">
+    </label>
+    <p class="auth-err" id="pwErr" hidden></p>
+    <div class="pw-actions">
+      <button class="btn" type="button" id="pwCancel">取消</button>
+      <button class="btn primary" type="submit" id="pwSubmit">保存新密码</button>
+    </div>
+    <p class="auth-tip">密码用 scrypt 加盐哈希存库，服务端不保存明文。</p>
+  </form>
+</div>
 
 <!-- 登录/创建账号遮罩：未登录时盖住下面的管理内容。
      首次运行库里没有账号，显示的是创建页；已经建过账号则显示登录页。

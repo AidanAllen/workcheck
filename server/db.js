@@ -128,7 +128,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 const A = {
   countAdmins: db.prepare('SELECT COUNT(*) AS n FROM admins'),
   getByName: db.prepare('SELECT * FROM admins WHERE username = ?'),
+  getById: db.prepare('SELECT * FROM admins WHERE id = ?'),
   insertAdmin: db.prepare('INSERT INTO admins (username, salt, hash, created_at) VALUES (?,?,?,?)'),
+  updatePassword: db.prepare('UPDATE admins SET salt = ?, hash = ? WHERE id = ?'),
   insertSession: db.prepare('INSERT INTO sessions (token, admin_id, created_at, expires_at) VALUES (?,?,?,?)'),
   // 会话和用户一起取，顺手过滤掉已过期的，省得调用方再判一次时间
   liveSession: db.prepare(
@@ -139,6 +141,8 @@ const A = {
   deleteSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
   deleteExpired: db.prepare('DELETE FROM sessions WHERE expires_at <= ?'),
   deleteUserSessions: db.prepare('DELETE FROM sessions WHERE admin_id = ?'),
+  /** 同一个人可能有多个会话（多设备/多浏览器）；改密码时只留当前这一个 */
+  deleteUserSessionsExcept: db.prepare('DELETE FROM sessions WHERE admin_id = ? AND token != ?'),
 };
 
 /** 是否已有管理员 —— 决定 setup 页显示「创建账号」还是「登录」 */
@@ -153,6 +157,24 @@ function createAdmin(username, salt, hash) {
 
 function findAdmin(username) {
   return A.getByName.get(username) || null;
+}
+
+function findAdminById(id) {
+  return A.getById.get(id) || null;
+}
+
+/**
+ * 改密码：换 salt + hash（旧盐旧哈希一起作废，不保留任何可回滚的痕迹）。
+ * 同时把**其它**会话全踢掉 —— 改密码的动机往往就是「怀疑密码泄露了」，
+ * 此时留着旧会话等于没改。当前会话保留，否则用户改完就被登出、体验莫名其妙。
+ * @returns {number} 被踢掉的会话数（不含当前这个）
+ */
+function changePassword(adminId, salt, hash, keepToken) {
+  const run = db.transaction(() => {
+    A.updatePassword.run(salt, hash, adminId);
+    return A.deleteUserSessionsExcept.run(adminId, keepToken || '').changes;
+  });
+  return run();
 }
 
 /** 建会话，返回 token。ttlMs 默认 7 天 */
@@ -316,6 +338,8 @@ module.exports = {
   hasAdmin,
   createAdmin,
   findAdmin,
+  findAdminById,
+  changePassword,
   createSession,
   sessionUser,
   dropSession,

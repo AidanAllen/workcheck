@@ -101,6 +101,62 @@ async function logout() {
   showGate('login');
 }
 
+// ---------------------------------------------------------------- 修改密码
+
+function openPwGate() {
+  $('pwErr').hidden = true;
+  $('pwOld').value = '';
+  $('pwNew').value = '';
+  $('pwNew2').value = '';
+  $('pwGate').hidden = false;
+  setTimeout(() => $('pwOld').focus(), 60);
+}
+
+function closePwGate() {
+  $('pwGate').hidden = true;
+}
+
+async function submitPassword(e) {
+  e.preventDefault();
+  const errBox = $('pwErr');
+  errBox.hidden = true;
+
+  const oldPassword = $('pwOld').value;
+  const newPassword = $('pwNew').value;
+  const again = $('pwNew2').value;
+
+  // 前端先挡一道明显的错，省一次往返；真正的校验以服务端为准
+  if (!oldPassword) return showPwErr('请输入当前密码');
+  if (newPassword.length < 6) return showPwErr('新密码至少 6 位');
+  if (newPassword !== again) return showPwErr('两次输入的新密码不一致');
+  if (newPassword === oldPassword) return showPwErr('新密码不能与当前密码相同');
+
+  const btn = $('pwSubmit');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/auth/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPassword, newPassword }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || '修改失败');
+    closePwGate();
+    toast(d.kicked > 0 ? `密码已修改，已退出其它 ${d.kicked} 台设备的登录` : '密码已修改');
+  } catch (err) {
+    showPwErr(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function showPwErr(msg) {
+  const errBox = $('pwErr');
+  errBox.textContent = msg;
+  errBox.hidden = false;
+  return false;
+}
+
 /**
  * 没登录就离开这一页。
  *
@@ -424,6 +480,17 @@ function bind() {
   // 登录 / 创建账号表单：回车或点按钮都走这里，成功后自动落会话并进管理界面
   $('authForm').addEventListener('submit', submitAuth);
   $('btnLogout').addEventListener('click', logout);
+
+  // 改密码：点右上角「已登录 xxx」打开，点遮罩空白处或 Esc 关闭
+  $('authUser').addEventListener('click', openPwGate);
+  $('pwForm').addEventListener('submit', submitPassword);
+  $('pwCancel').addEventListener('click', closePwGate);
+  $('pwGate').addEventListener('click', (e) => {
+    if (e.target === $('pwGate')) closePwGate();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('pwGate').hidden) closePwGate();
+  });
 
   // 点卡片以外的空白处 = 离开。判 e.target 是不是遮罩本身，
   // 否则在输入框之间点一下、选中文字都会被误判成「想走」。

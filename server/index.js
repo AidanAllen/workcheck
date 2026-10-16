@@ -23,6 +23,8 @@ const {
   hasAdmin,
   createAdmin,
   findAdmin,
+  findAdminById,
+  changePassword,
   createSession,
   sessionUser,
   dropSession,
@@ -355,6 +357,34 @@ app.post('/api/auth/logout', (req, res) => {
   dropSession(readCookie(req, SESSION_COOKIE));
   clearSessionCookie(res);
   return res.json({ ok: true });
+});
+
+/**
+ * 改密码。
+ *
+ * 必须验旧密码 —— 光有会话不够：会话可能是别人趁你没锁屏时顺手拿的，
+ * 那台设备上的人不该能直接把密码换掉把你锁在外面。
+ * 改完把其它设备的会话全踢掉，只留当前这一个（见 db.changePassword）。
+ */
+app.post('/api/auth/password', adminGuard, (req, res) => {
+  const user = sessionUser(readCookie(req, SESSION_COOKIE));
+  if (!user) return res.status(401).json({ ok: false, error: '请先登录' });
+
+  const oldPassword = String((req.body && req.body.oldPassword) || '');
+  const newPassword = String((req.body && req.body.newPassword) || '');
+
+  const admin = findAdminById(user.adminId);
+  if (!admin) return res.status(401).json({ ok: false, error: '账号不存在，请重新登录' });
+  if (!verifyPassword(oldPassword, admin.salt, admin.hash)) {
+    return res.status(400).json({ ok: false, error: '当前密码不正确' });
+  }
+  if (newPassword.length < 6) return res.status(400).json({ ok: false, error: '新密码至少 6 位' });
+  if (newPassword.length > 128) return res.status(400).json({ ok: false, error: '新密码太长了（最多 128 位）' });
+  if (newPassword === oldPassword) return res.status(400).json({ ok: false, error: '新密码不能与当前密码相同' });
+
+  const { salt, hash } = hashPassword(newPassword);
+  const kicked = changePassword(admin.id, salt, hash, readCookie(req, SESSION_COOKIE));
+  return res.json({ ok: true, kicked });
 });
 
 /** 管理接口的守门人：有会话放行，否则按「还没建账号 / 没登录」分别提示前端该显示哪一屏 */

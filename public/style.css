@@ -712,6 +712,10 @@ pre.payload {
 .auth-field input:focus { outline: none; border-color: var(--accent); }
 .auth-err { margin: 0; font-size: 12px; color: var(--fail); }
 .auth-card .btn.primary { justify-content: center; margin-top: 4px; }
+/* 改密码弹层的按钮行：取消在左、保存在右。.auth-card 是纵向 flex，
+   不给它单独排队的话两个按钮会各占一整行，看着像两个主操作。 */
+.pw-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 2px; }
+.pw-actions .btn.primary { margin-top: 0; min-width: 108px; }
 
 /* 「配置信息」标签里的凭证表单：窄屏一列、宽屏两列，别让输入框挤成一条 */
 .cred-grid {
