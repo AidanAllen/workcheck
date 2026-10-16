@@ -133,32 +133,38 @@ function switchTab(name) {
 
 // ---------------------------------------------------------------- 来源列表
 
+/**
+ * 能在「数据推送」页管理的来源。
+ *
+ * 内置来源（飞书签到挂数据用的那个）**不在这里出现** —— 用户压根没建过它、
+ * 也不该管它：它的数据是服务进程从飞书直接拉取入库的，既不推送也不需要 Key。
+ * 更要命的是它的「停用」开关会让签到数据停止入库，那是个纯粹的陷阱。
+ * 所以列表里索性完全不显示它，而不是显示出来再禁用几个按钮。
+ */
+function pushableSources() {
+  return state.sources.filter((s) => !s.builtin);
+}
+
 function renderSourceList() {
   const box = $('sourceList');
-  if (!state.sources.length) {
+  const list = pushableSources();
+  if (!list.length) {
     box.innerHTML = '<div class="empty">还没有来源，先创建一个</div>';
     return;
   }
-  box.innerHTML = state.sources
+  box.innerHTML = list
     .map((s) => {
       const full = state.keys[s.id];
-      // 内置来源（飞书签到直写入库用的那一个）：不能删，也没有推送 Key。
-      // 它的数据是服务进程直接 insertMany 写进来的，压根不走 HTTP ——
-      // 所以这一行连 Key 的位置都不给，避免出现一个「长得像凭据、其实没东西」的框。
-      const builtin = s.builtin ? '<span class="tag on" title="服务进程直接从飞书拉取入库，不走 HTTP，因此不持有推送 Key">内置</span>' : '';
-      const keyCell = s.builtin
-        ? '<span class="src-nokey" title="数据由服务进程直接写入数据库，不经过 HTTP，因此没有推送 Key">服务进程直接入库，无推送 Key</span>'
-        : `<span class="key-box${full ? ' revealed' : ''}" data-act="key" title="点击显示并复制完整 API Key">${
-            full ? escapeHtml(full) : escapeHtml(s.api_key_masked || '••••••••')
-          }</span>`;
+      const keyCell = `<span class="key-box${full ? ' revealed' : ''}" data-act="key" title="点击显示并复制完整 API Key">${
+        full ? escapeHtml(full) : escapeHtml(s.api_key_masked || '••••••••')
+      }</span>`;
       return `<div class="src-row" data-id="${s.id}">
       <span class="src-name">${escapeHtml(s.name)}</span>
-      ${builtin}
       ${keyCell}
       <span class="tag ${s.enabled ? 'on' : 'off'}">${s.enabled ? '启用' : '停用'}</span>
       <span class="spacer"></span>
       <button class="btn mini" data-act="toggle">${s.enabled ? '停用' : '启用'}</button>
-      ${s.builtin ? '' : '<button class="btn mini danger" data-act="del">删除</button>'}
+      <button class="btn mini danger" data-act="del">删除</button>
     </div>`;
     })
     .join('');
@@ -177,10 +183,9 @@ function sampleBody() {
 
 function buildSnippet() {
   // 只挑「持有 Key 的普通来源」：内置来源没有 Key，拿它做示例会生成一段注定 401 的代码。
-  // 兜底不再退回 sources[0]（那可能就是内置来源），宁可显式提示用户先去建一个来源。
-  const src =
-    state.sources.find((s) => s.enabled && s.hasKey) ||
-    state.sources.find((s) => s.hasKey);
+  // 兜底不再退回 sources[0]，宁可显式提示用户先去建一个来源。
+  const list = pushableSources();
+  const src = list.find((s) => s.enabled && s.hasKey) || list.find((s) => s.hasKey);
 
   if (!src) {
     return '// 还没有可用于推送的来源。\n// 先在左侧新建一个来源，拿到 API Key 后这里会自动生成对应的请求示例。';

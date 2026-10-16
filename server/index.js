@@ -470,6 +470,11 @@ app.post('/api/sources/:id/enabled', adminGuard, (req, res) => {
   const id = Number(req.params.id);
   const src = S.getSourceById.get(id);
   if (!src) return res.status(404).json({ ok: false, error: '来源不存在' });
+  // 内置来源页面上已经不显示了，这里再挡一道：把它停用会让签到数据停止入库，
+  // 而用户根本不会意识到自己点的是这个东西。它就该一直是启用的。
+  if (src.name === SOURCE_NAME) {
+    return res.status(400).json({ ok: false, error: '内置来源（飞书签到的数据挂在它下面）不能停用' });
+  }
   const enabled = req.body && req.body.enabled === false ? 0 : 1;
   S.toggleSource.run(enabled, id);
   return res.json({ ok: true, enabled: !!enabled });
