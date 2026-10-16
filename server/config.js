@@ -29,16 +29,33 @@ const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
  * 注意：**群 ID 不给默认值**。它是你的实际群标识，写进源码就等于跟着仓库公开出去
  * （公开仓库里任何人拿到都能顺着 open_id 猜你的群配置）。留空时拉取会明确报
  * 「未配置飞书群 ID」，去页面上填一次即可 —— 那份配置存在 data/config.json，不进版本库。
- * 回调地址和 scope 是通用值，不涉及具体账号，可以给默认。
+ * 回调地址是通用值，不涉及具体账号，可以给默认。
+ *
+ * **scope 不再是配置项**（以前放在表单里，现在去掉了）。理由见 DEFAULT_SCOPE 的说明。
  */
 const DEFAULT_CHAT_ID = '';
 const DEFAULT_REDIRECT = 'http://localhost:3000/feishu/callback';
+
+/**
+ * 授权 URL 里带的 scope —— 写死，不给用户配。
+ *
+ * 飞书文档里 scope 是**非必填**的「增量授权」参数：用户实际拿到的权限，
+ * 取决于你在开发者后台「权限管理」里申请并发布的那份列表，跟这里传什么无关。
+ * 这个参数只用来「在后台已申请的基础上再多要一点」。
+ *
+ * 既然不是必填，暴露给用户配就只剩坏处：
+ *   - 填了后台没申请的权限 → 授权页直接报 20027，用户完全不知道错在哪；
+ *   - 留空、或填得对，效果跟不填（用后台那份）几乎一样。
+ * 所以固定用这个默认值：它对应本项目真正需要的两项（读消息 + 读群）。
+ * 你要是换了业务、需要别的权限，请去开发者后台申请，并改这里。
+ */
 const DEFAULT_SCOPE = 'im:message im:chat:readonly';
 
 const DEFAULTS = {
   capsolver: { apiKey: '', lowThreshold: 0.5, unitPricePer1k: 0.8 },
   ttshitu: { username: '', password: '' },
-  feishu: { appId: '', appSecret: '', chatId: '', redirectUri: '', scope: '' },
+  // scope 故意不在这里 —— 它不是配置项，见 DEFAULT_SCOPE
+  feishu: { appId: '', appSecret: '', chatId: '', redirectUri: '' },
 };
 
 const GROUPS = Object.keys(DEFAULTS);
@@ -46,7 +63,7 @@ const SECRETS = { capsolver: ['apiKey'], ttshitu: ['password'], feishu: ['appSec
 const REQUIRED = { capsolver: ['apiKey'], ttshitu: ['username', 'password'], feishu: ['appId', 'appSecret'] };
 const NUMBERS = { capsolver: ['lowThreshold', 'unitPricePer1k'] };
 const FALLBACK = {
-  feishu: { chatId: DEFAULT_CHAT_ID, redirectUri: DEFAULT_REDIRECT, scope: DEFAULT_SCOPE },
+  feishu: { chatId: DEFAULT_CHAT_ID, redirectUri: DEFAULT_REDIRECT },
 };
 /** 旧版文件名 → 迁移时的字段映射 */
 const LEGACY = {
@@ -183,8 +200,14 @@ function save(name, patch) {
   if (!DEFAULTS[name]) return { ok: false, error: `未知的配置组：${name}` };
   const all = readAll();
   const stored = (all && all[name]) || {};
-  const next = { ...stored };
   const src = patch && typeof patch === 'object' ? patch : {};
+
+  // 只认当前 DEFAULTS 里声明的键 —— stored 里可能留着已经废弃的字段
+  // （比如从表单里移除的 scope），不清掉它就会在配置文件里阴魂不散
+  const next = {};
+  for (const k of Object.keys(DEFAULTS[name])) {
+    if (stored[k] !== undefined) next[k] = stored[k];
+  }
 
   for (const k of Object.keys(DEFAULTS[name])) {
     if (!(k in src)) continue;

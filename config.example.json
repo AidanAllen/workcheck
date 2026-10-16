@@ -3,8 +3,10 @@
     "这是 data/config.json 的模板，仅供参照格式 —— 不参与运行。",
     "实际配置请在浏览器里打开 http://<你的地址>:3000/setup → 「配置信息」标签里填写，",
     "保存后会写进数据目录下的 config.json，改完立即生效、不需要重启。",
-    "密钥在接口返回时一律是掩码，页面不回显明文；这里的三项 secret 留空表示不修改。",
-    "飞书的 chatId / redirectUri / scope 留空时用程序内置默认值（见 server/config.js）。"
+    "密钥在接口返回时一律是掩码，页面不回显明文；这里的 secret 留空表示不修改。",
+    "飞书的 chatId / redirectUri 留空时用程序内置默认值（见 server/config.js）。",
+    "授权范围 scope 不是配置项：权限来自飞书开发者后台「权限管理」里申请的列表，",
+    "程序授权时固定带 im:message im:chat:readonly，页面上没有也不需要这个输入框。"
   ],
 
   "capsolver": {
@@ -22,7 +24,6 @@
     "appId": "cli_xxxxxxxxxxxxxxxx",
     "appSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "chatId": "oc_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    "redirectUri": "http://localhost:3000/feishu/callback",
-    "scope": "im:message im:chat:readonly"
+    "redirectUri": "http://localhost:3000/feishu/callback"
   }
 }

@@ -30,7 +30,7 @@ npm start
 {
   "capsolver": { "apiKey": "CAP-xxx", "lowThreshold": 0.5, "unitPricePer1k": 0.8 },
   "ttshitu":   { "username": "账号", "password": "密码" },
-  "feishu":    { "appId": "cli_xxx", "appSecret": "xxx", "chatId": "", "redirectUri": "", "scope": "" }
+  "feishu":    { "appId": "cli_xxx", "appSecret": "xxx", "chatId": "", "redirectUri": "" }
 }
 ```
 
@@ -163,11 +163,16 @@ npm run selftest        # 解析规则单测（10 个用例）
 开放平台的 **App ID / App Secret** 是运行期配置，**不要写进源码**。
 到 **`/setup.html` → 配置信息 → 飞书应用凭证** 里填写，保存后立即生效、不用重启。
 
-同页还可以改 **群 ID**、**回调地址** 与 **scope**。
+同页还可以改 **群 ID** 与 **回调地址**。
 
 > **群 ID 没有源码级默认值**，必须自己填一次（从飞书群链接或开放平台获取）。
 > 它是你的实际群标识，写进源码就等于跟着仓库公开出去 —— 所以这一项刻意留空，
-> 没填时拉取会直接报「未配置飞书群 ID」。回调地址与 scope 是通用值，可以给默认。
+> 没填时拉取会直接报「未配置飞书群 ID」。回调地址是通用值，可以给默认。
+>
+> **scope 不需要配置**（页面上已经没有这个输入框）：权限的真正来源是飞书开发者后台
+> 「权限管理」里申请并发布的那份列表，授权 URL 里的 `scope` 只是可选的「增量授权」参数。
+> 程序固定使用 `im:message im:chat:readonly`（读消息 + 读群）；真要换权限请去后台申请，并改
+> `server/config.js` 里的 `DEFAULT_SCOPE`。
 
 没配就点授权时页面会直接提示缺什么。OAuth 的 `state` 每次随机生成并存 Cookie，
 回调时逐枚比对一次性值 —— 防止别人拿自己的授权码拼链接来劫持你的会话。

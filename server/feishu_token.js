@@ -27,7 +27,6 @@ function cred() {
     appSecret: values.appSecret || '',
     chatId: values.chatId || '',
     redirectUri: values.redirectUri || '',
-    scope: values.scope || '',
   };
 }
 
@@ -141,7 +140,8 @@ module.exports = {
   cred,
   getAppId: () => cred().appId,
   getRedirect: () => cred().redirectUri || config.DEFAULT_REDIRECT,
-  getScope: () => cred().scope || config.DEFAULT_SCOPE,
+  // scope 不来自配置文件，是写死的常量 —— 见 config.js 里 DEFAULT_SCOPE 的说明
+  getScope: () => config.DEFAULT_SCOPE,
   getChatId: () => cred().chatId || config.DEFAULT_CHAT_ID,
   writeToken,
   exchangeCode,

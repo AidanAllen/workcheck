@@ -142,10 +142,6 @@ try { var t = localStorage.getItem('workcheck.theme'); if (t && t !== 'sakura') 
           <span>回调地址</span>
           <input type="text" data-field="redirectUri" id="fsRedirect" placeholder="http://localhost:3000/feishu/callback" autocomplete="off">
         </label>
-        <label class="auth-field">
-          <span>授权范围 scope</span>
-          <input type="text" data-field="scope" id="fsScope" placeholder="im:message im:chat:readonly" autocomplete="off">
-        </label>
       </div>
       <div class="setup-note" style="margin-top:12px">
         授权报错 <b>20029</b> 基本都是回调地址差了一两个字符（127.0.0.1 与 localhost 在飞书白名单里算两个地址、
