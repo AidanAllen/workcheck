@@ -41,7 +41,11 @@ npm start
 ## 主题模块（可切换）
 
 顶栏右侧的分段控件切换主题，选择存在浏览器 localStorage，刷新、换页面（含接入配置页）都保持；
-主题文件挂在 `<link id="themeCss">` 上，head 里的内联脚本在首屏前套用，不会先闪默认色再切。
+主题文件挂在 `<link id="themeCss">` 上。这个 link 由 head 的内联脚本在**解析期**用
+`document.write` 写出并直接带上正确的 href —— 样式表必须在解析期就位才能阻塞首屏渲染。
+别改成「先写空 link、等 JS 再补 href」：那样浏览器会把主题 css 当成脚本动态加载、不阻塞渲染，
+会先用 `style.css` 的兜底色（= 初樱）画一帧，非默认主题的用户每次刷新都看见初樱闪一下
+（实测踩过的坑，探针里 rAF 首帧从 51ms 推到主题 css 到货后才恢复就是证据）。
 
 | 主题 | 文件 | 壁纸 | 取色 |
 |---|---|---|---|
@@ -66,9 +70,11 @@ npm start
 1. 往 `public/themes/` 放一个 `<名字>.css`，结构照 `sakura.css`：只写 `:root` 变量
    （`--accent / --ok / --fail / --warn / --plat-tb / --plat-st / --wall-* / --wall-scrim / --*-grad-* / --glow-*`），
    壁纸图放 `public/bg/`；需要整体微调某个组件时再写具体选择器（参考 `rain.css` 末尾的 `.wallpaper::after`）
-2. 在 `public/common.js` 的 `THEMES` 数组加一行 `{ id: '<名字>', label: 'emoji 名字' }`
+2. 在 `public/common.js` 的 `THEMES` 数组加一行 `{ id: '<名字>', icon: 'emoji', name: '名字' }`
 
-刷新页面即可在顶栏看到新主题按钮，无需改其他任何文件。
+刷新页面即可在顶栏看到新主题按钮，无需改其他任何文件。注意 id 只能用
+小写字母 / 数字 / 连字符（head 内联脚本按这个字符集白名单拼链接，防 localStorage
+怪值注入 HTML），首套大写或下划线的名字首屏会回落默认主题。
 
 ## 页面
 

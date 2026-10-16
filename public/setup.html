@@ -5,10 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>接入配置 · workcheck</title>
 <link rel="stylesheet" href="/style.css">
-<link id="themeCss" rel="stylesheet">
 <script>
-/* 首屏前套用已保存的主题，避免先闪一下默认色再切 */
-try { var t = localStorage.getItem('workcheck.theme'); if (t && t !== 'sakura') document.getElementById('themeCss').href = '/themes/' + t + '.css'; } catch (e) {}
+/* 首屏防闪（别改回「空 <link> + JS 补 href」）：
+   解析期就带 href 的样式表才会阻塞首屏渲染；JS 事后补的 href 会被当成动态
+   加载，浏览器先用 style.css 的兜底色（= 初樱）画一帧，主题 css 到了才切 ——
+   非默认主题的用户每次刷新都会看见初樱闪一下。
+   document.write 让 <link> 回到解析期插入，和手写在 HTML 里同等对待。
+   主题 id 限定字符集，防止 localStorage 里的怪值拼进 HTML；
+   未知 id 会 404，自然回落到兜底色，和主题文件缺失的表现一致。 */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('workcheck.theme'); } catch (e) {}
+  if (t && /^[a-z][a-z0-9-]*$/.test(t) && t !== 'sakura') {
+    document.write('<link id="themeCss" rel="stylesheet" href="/themes/' + t + '.css">');
+  } else {
+    document.write('<link id="themeCss" rel="stylesheet">');
+  }
+})();
 </script>
 </head>
 <body>
