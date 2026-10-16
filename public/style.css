@@ -204,6 +204,10 @@ a.btn:link, a.btn:visited {
   color: var(--text);
   border-radius: var(--radius-pill);
   padding: 7px 16px; font-size: 13px; font-weight: 600;
+  /* line-height 必须是 normal —— body 上是 1.6，<a> 会继承，于是同样 padding 下
+     链接按钮比相邻的 <button> 高出一截（12px 字号时差 3px，肉眼很明显）。
+     <button> 的 line-height 本来就重置成 normal，这里对齐它。 */
+  line-height: normal;
   transition: all .18s ease;
 }
 a.btn:link:hover, a.btn:visited:hover {
