@@ -1,6 +1,6 @@
 {
   "name": "workcheck",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "第三方数据接收与可视化看板",
   "main": "server/index.js",
