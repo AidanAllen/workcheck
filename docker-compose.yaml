@@ -1,13 +1,16 @@
 # workcheck 部署编排
 #
-# 钉在已发布的版本标签上，而不是跟着 main 漂 —— 否则哪天重新构建会悄悄
-# 拿到未发布的新代码。升级版本时把下面**两处**版本号一起改（context 的 #vX.Y.Z
-# 和 image 的 :vX.Y.Z），改完 docker compose up -d --build。
+# 跟 main 分支：每次 `--build` 都会重新拉 GitHub 上的最新代码。
+# 好处是修完即上线，代价是不稳 —— 拉下来的是尚未发版的东西。
+# 想反过来钉到某个已发布的版本，把下面**两处** main 一起换成同一个版本标签
+# （context 的 #vX.Y.Z 和 image 的 :vX.Y.Z），改完 docker compose up -d --build。
+#
+# 注：BuildKit 对 #main 这种「名字没变内容变了」的远端引用会用缓存，
+# 重新构建前先 `docker compose build --no-cache`，否则可能还在跑旧代码。
 #
 # 从 GitHub 直接拉代码构建，不需要先把仓库 clone 下来：
 #   docker compose up -d --build
 # 想用自己 fork 的地址，把 build.context 换成对应仓库地址即可。
-# 想跟开发中的最新代码（不稳）就把 #v1.0.3 换成 #main。
 #
 # 所有平台凭证（CapSolver / TT识图 / 飞书）都在浏览器里配置：
 #   启动后打开 http://<服务器IP>:3000/setup，首次进入会先让你创建管理员账号，
@@ -19,13 +22,14 @@
 services:
   workcheck:
     build:
-      context: https://github.com/AidanAllen/workcheck.git#v1.0.3
+      context: https://github.com/AidanAllen/workcheck.git#main
       # 本地改代码、想直接构建当前目录时，把上面一行换成：
       # context: .
-    # tag 跟 context 的版本保持一致：一来「现在跑的是哪个版本」一眼可见，
-    # 二来升级时新旧镜像并存，回滚只要改回上一个版本号重新 build。
-    # （若多个 compose 项目共用同一台机器，建议再加个宿主名前缀，如 myhost/workcheck:v1.0.3）
-    image: workcheck:v1.0.3
+    # tag 跟 context 的引用保持一致：Docker 按 tag 认镜像，
+    # #main 构建出来的东西要是打成了某个版本标签，同一个 tag 会一次次被覆盖，
+    # 以后根本分不清容器里跑的到底是哪个版本。
+    # （若多个 compose 项目共用同一台机器，建议再加个宿主名前缀，如 myhost/workcheck:main）
+    image: workcheck:main
     container_name: workcheck
     restart: unless-stopped
 
