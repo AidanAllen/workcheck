@@ -7,7 +7,7 @@
 # 从 GitHub 直接拉代码构建，不需要先把仓库 clone 下来：
 #   docker compose up -d --build
 # 想用自己 fork 的地址，把 build.context 换成对应仓库地址即可。
-# 想跟开发中的最新代码（不稳）就把 #v1.0.2 换成 #main。
+# 想跟开发中的最新代码（不稳）就把 #v1.0.3 换成 #main。
 #
 # 所有平台凭证（CapSolver / TT识图 / 飞书）都在浏览器里配置：
 #   启动后打开 http://<服务器IP>:3000/setup，首次进入会先让你创建管理员账号，
@@ -19,13 +19,13 @@
 services:
   workcheck:
     build:
-      context: https://github.com/AidanAllen/workcheck.git#v1.0.2
+      context: https://github.com/AidanAllen/workcheck.git#v1.0.3
       # 本地改代码、想直接构建当前目录时，把上面一行换成：
       # context: .
     # tag 跟 context 的版本保持一致：一来「现在跑的是哪个版本」一眼可见，
     # 二来升级时新旧镜像并存，回滚只要改回上一个版本号重新 build。
-    # （若多个 compose 项目共用同一台机器，建议再加个宿主名前缀，如 myhost/workcheck:v1.0.2）
-    image: workcheck:v1.0.2
+    # （若多个 compose 项目共用同一台机器，建议再加个宿主名前缀，如 myhost/workcheck:v1.0.3）
+    image: workcheck:v1.0.3
     container_name: workcheck
     restart: unless-stopped
 
