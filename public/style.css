@@ -646,7 +646,10 @@ button.btn.mini { padding: 4px 12px; font-size: 12px; }
 /* 手机上的点按面积：mini 按钮在桌面只有 26px 高，手指瞄不准。
    媒体查询不提高特异性，所以这一段必须写在上面的桌面规则之后才盖得住。 */
 @media (max-width: 640px) {
-  button.btn.mini, a.btn.mini:link, a.btn.mini:visited {
+  /* :not([hidden]) 是必须的：这里的 display: inline-flex 特异性高于 UA 的
+     [hidden]{display:none}，不带这个限定的话手机上「默认排序」「退出登录」这些
+     默认藏起来的按钮会直接显形（宽屏看不到是因为桌面规则没碰 display）。 */
+  button.btn.mini:not([hidden]), a.btn.mini:link:not([hidden]), a.btn.mini:visited:not([hidden]) {
     padding: 9px 14px; font-size: 12.5px; min-height: 38px;
     display: inline-flex; align-items: center; justify-content: center;
   }
@@ -764,4 +767,44 @@ pre.payload {
 .cred-grid {
   display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* -------------------------------------------------- 顶栏右侧控件等高
+
+   顶栏一行里并排的是三种完全不同的盒模型：主题切换器（<div> 套 <button>）、
+   「接入配置 / 返回看板」（<a class="nav-link">）、「默认排序 / 退出登录」
+   （<button class="btn mini">）。各自的 padding、字号、行高都不一样，
+   排出来是 26 / 34.8 / 27px 三个尺寸，看着像三组风格不同的按钮。
+
+   统一办法是让高度彻底脱钩于字体：
+     - height 由变量 --ctl-h 一家说了算；
+     - padding-block 归零 + line-height: 1 + flex 居中，
+       这样文字再怎么变都不会把盒子顶开，也不会被容器裁掉；
+     - 换断点时在媒体查询里改 --ctl-h 一处即可。
+
+   这一段必须放在手机上给 mini / segmented 加 padding 的媒体查询**之后**：
+   那里的 `padding: 9px 14px` 是简写，写在后面会把这里的 padding-block: 0 冲掉。 */
+.controls { --ctl-h: 26px; }
+
+.controls > .theme-switch:not([hidden]),
+.controls > .nav-link:not([hidden]),
+.controls > .btn.mini:not([hidden]) {
+  box-sizing: border-box;
+  height: var(--ctl-h);
+  padding-top: 0; padding-bottom: 0;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* 主题切换器内部那几个按钮要跟着撑满胶囊：居中排的话按钮和胶囊内壁之间
+   会露出一条 1px 的细缝，选中的那块底色就断开了 */
+.controls > .theme-switch > button {
+  height: 100%; padding-top: 0; padding-bottom: 0; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* :not([hidden]) 不是可有可无的 —— 「默认排序」和「退出登录」默认带 hidden
+   属性，而这里的选择器特异性高过 UA 的 [hidden]{display:none}，
+   不排除掉的话按钮会直接显形。 */
+@media (max-width: 640px) {
+  /* 手指点得着：和主题切换器一起抬高到 38px（手机上 segmented.small 的自然高度） */
+  .controls { --ctl-h: 38px; }
 }
