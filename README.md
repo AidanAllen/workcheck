@@ -44,14 +44,15 @@ npm start
 
 ### Docker 跑
 
-编排文件的构建上下文直接指向 GitHub 仓库，**不用先 clone**：
+编排文件的 `build.context` 直接指向本仓库的 **`main` 分支**，**不用先 clone**：
 
 ```bash
-curl -O https://raw.githubusercontent.com/AidanAllen/workcheck/refs/tags/v1.0.2/docker-compose.yaml
+curl -O https://raw.githubusercontent.com/AidanAllen/workcheck/main/docker-compose.yaml
 docker compose up -d --build
 ```
 
-细节见文末 [部署](#部署)。
+这份跟的是 `main`：**推上去、重建一次就是最新代码**。
+想改成固定某个已发布版本（可复现、可回滚），见文末 [部署](#部署)。
 
 ### 首次使用三步
 
@@ -63,8 +64,11 @@ docker compose up -d --build
 
 ```bash
 curl -s http://127.0.0.1:3000/api/health
-# {"ok":true,"time":"...","app":"workcheck","version":"1.0.2"}
+# {"ok":true,"time":"...","app":"workcheck","version":"1.0.3"}
 ```
+
+版本号取自 `package.json`，**在构建镜像那一刻写进镜像**，所以即使编排文件跟的是
+`main`、不好从 ref 判断跑的是哪份代码，也能靠这个字段确认容器实际在跑哪个版本。
 
 ---
 
@@ -400,14 +404,13 @@ node -e "const db=require('./server/db.js');db.db.prepare('DELETE FROM sessions'
 
 ## 发版
 
-一个版本号散在**三处文件、五个位置**，手工改漏一处的后果不轻 —— 尤其是漏了
-`docker-compose.yaml` 的 `context`，用户下到的编排文件还指着旧版本，部署出来就是旧代码。
-所以发版走脚本：
+一个版本号散在**三处文件、五个位置**（`package.json` 1 处、`package-lock.json` 2 处、
+`docker-compose.yaml` 2 处），手工改漏一处，代码与它自带的编排文件就会对不上。所以发版走脚本：
 
 ```bash
-npm run release 1.0.3              # 正式版
+npm run release 1.0.4              # 正式版
 npm run release 1.1.0-rc.1         # 预发布（GitHub 上会标 pre-release）
-bash scripts/release.sh 1.0.3 --dry-run   # 只检查、打印将做什么，不改任何东西
+bash scripts/release.sh 1.0.4 --dry-run   # 只检查、打印将做什么，不改任何东西
 ```
 
 脚本按顺序做六件事，任一步失败就停：
@@ -415,7 +418,8 @@ bash scripts/release.sh 1.0.3 --dry-run   # 只检查、打印将做什么，不
 1. **前置检查** —— 版本号格式（semver，允许 `-rc.1`）、工作区干净、在 `main` 上、标签不存在、
    与远程同步，以及**当前各处版本号本身是否自洽**（不自洽就先修再来发）
 2. **同步版本号** —— `package.json`(1 处) / `package-lock.json`(2 处) /
-   `docker-compose.yaml`(4 处：context、image、两处注释)，改完由 `check-version.js` 复核一致
+   `docker-compose.yaml`(4 处：context、image、两处注释，**仅钉版本形态**)，
+   改完由 `check-version.js` 复核一致
 3. **跑 `selftest`** —— 不过就中止
 4. **提交并推送 `main`**
 5. **打附注标签并推送**
@@ -426,25 +430,63 @@ bash scripts/release.sh 1.0.3 --dry-run   # 只检查、打印将做什么，不
 > 发版前建议先用 `--dry-run` 扫一眼生成的说明正文，别只看脚本有没有报错 ——
 > 说明是先生成再发布的，分类不对只能事后用 `gh release edit --notes-file` 补修。
 
-**compose 有两种形态，脚本都能处理**：钉版本（`#v1.0.2` + `:v1.0.2`）时它同步那 4 处；
-跟分支（`#main` + `:main`）时文件里没有版本号，脚本跳过并打印说明。
-⚠️ 想在发版时让脚本接管 compose，**发版前 compose 必须已经处于「钉版本 + 当前版本号」状态并已提交推送** ——
-脚本是「从 package.json 的当前版本往上替换」，你若手工先写成了目标版本，它找不到旧版本号、替换 0 处，会直接中止。
+### compose 跟的是 main，发版时要临时钉一下
+
+仓库 `main` 上的 `docker-compose.yaml` 默认是**跟分支**形态：
+
+```yaml
+context: https://github.com/AidanAllen/workcheck.git#main
+image: workcheck:main
+```
+
+好处是服务器重建就跟最新代码；代价是文件里没有版本号，**发版脚本不会动它** ——
+新标签上的编排文件也写着 `#main`，从 Release 页下载拿到的就不是那个版本。
+
+所以既定流程是「**发版时临时钉、发完改回来**」：
+
+```bash
+# 1. 切回钉版本形态：取上一个标签里的那份，版本号必须是「当前」版本
+git checkout v1.0.3 -- docker-compose.yaml
+git commit -m "build: compose 改为钉版本标签，准备发布 v1.0.4" && git push
+
+# 2. 发版：脚本把 compose 的 4 处一起同步成 v1.0.4
+npm run release 1.0.4
+
+# 3. 发完把 main 上那份改回跟分支（标签上的保持钉 v1.0.4 不变）
+#    找那笔提交：git log --oneline -- docker-compose.yaml（注释里带「改回跟 main」的那笔）
+git checkout <那笔 hash> -- docker-compose.yaml
+git commit -m "build: compose 改回跟 main 分支" && git push
+```
+
+结果是两者各司其职：**标签上的 compose 钉死**（从 Release 页下载是该版本代码），
+**main 上的继续跟最新代码**（服务器重建即更新）。下次发版再走一遍同样的来回。
+
+⚠️ 两条硬约束：
+
+- **第 1 步必须写成「当前」版本号（v1.0.3），不是目标版本（v1.0.4）** —— 脚本是
+  「从 package.json 的当前版本往上替换」，手工先写成目标版本的话，它找不到旧值、
+  替换 0 处，会断言失败中止
+- **脚本只 `git add` package.json / package-lock.json / docker-compose.yaml**，
+  README 之类其他改动必须先自己提交，否则不会进这次发版
 
 单独检查版本号一致性：
 
 ```bash
 npm run check-version          # 只检查
-npm run check-version 1.0.2    # 额外断言等于 1.0.2
+npm run check-version 1.0.3    # 额外断言等于 1.0.3
 ```
+
+跟分支形态下 compose 不参与校验，脚本会打印一行提示而不是报错。
 
 ⚠️ **发版后要在远端核验**，别只信脚本的「已推送」打印。交叉验证：
 
 ```bash
-git ls-remote --tags origin
-gh release list
-curl -sI https://raw.githubusercontent.com/AidanAllen/workcheck/refs/tags/v1.0.2/docker-compose.yaml | head -1
+git ls-remote --tags origin     # 标签真的在远端吗
+gh release list                 # Release 在吗、Latest 是不是它
+curl -s https://raw.githubusercontent.com/AidanAllen/workcheck/refs/tags/v1.0.3/docker-compose.yaml | grep -E 'context|image'
 ```
+
+标签上那份 compose 里，context 应该是 `#v1.0.3`、image 是 `:v1.0.3`。
 
 ---
 
@@ -480,7 +522,7 @@ public/               前端（原生 HTML/CSS/JS，不依赖 CDN）
   ├─ themes/          主题文件（一主题一 css，只写变量）
   └─ bg/              壁纸（初樱 portrait/landscape，雨夜 rain-*.webp）
 Dockerfile            多阶段构建（builder 装编译工具链，运行镜像只带运行时）
-docker-compose.yaml   编排：直接以 GitHub 仓库为 build context，钉在发布标签上
+docker-compose.yaml   编排：以 GitHub 仓库为 build context，跟 main 分支（发版时临时钉标签）
 config.example.json   config.json 的字段样例（真正的配置在 data/ 下，不进版本库）
 data/                 SQLite 库、config.json（平台凭证）、飞书令牌、用量快照
 ```
@@ -528,8 +570,8 @@ rm -f data/*_usage.json      # 用量快照，删掉会自动重建
 ### 方式一：Docker（推荐）
 
 ```bash
-# 1. 下载编排文件（钉在当前发布标签上）
-curl -O https://raw.githubusercontent.com/AidanAllen/workcheck/refs/tags/v1.0.2/docker-compose.yaml
+# 1. 下载编排文件（main 上这份跟的是 main 分支）
+curl -O https://raw.githubusercontent.com/AidanAllen/workcheck/main/docker-compose.yaml
 
 # 2. 构建并启动
 docker compose up -d --build
@@ -545,8 +587,21 @@ docker build -t workcheck https://github.com/AidanAllen/workcheck.git#main
 docker run -d --name workcheck -p 3000:3000 -v workcheck-data:/data workcheck
 ```
 
-> `docker-compose.yaml` 里的 `build.context` 指向本仓库的发布标签。如果你 fork 了，
-> 记得把那一行改成自己的地址（ref 用 `#` 指定）。
+#### 编排文件拉的是哪份代码
+
+`build.context` 末尾 `#` 后面就是 ref，**当前是 `#main`**：
+
+| 想要 | 怎么拿 | 效果 |
+|---|---|---|
+| **跟最新代码**（默认） | 下 `.../main/docker-compose.yaml`，或 context 写 `...git#main` | 每次 `--build` 重新拉 main 最新代码。推上去、重建一次即更新；代价是拉到的是尚未发版的东西，出问题不好定位版本 |
+| **钉某个已发布版本** | 下 `.../refs/tags/v1.0.3/docker-compose.yaml`，或 context 写 `...git#v1.0.3` | 重建一万次都是同一份代码，可复现、可回滚。升级就是把两处版本号一起改了再 build |
+
+- **镜像 tag 要跟 context 的 ref 一起改**（`#main` 配 `image: workcheck:main`，
+  `#v1.0.3` 配 `workcheck:v1.0.3`）。只改 context 的话镜像还叫旧名字、装的却是新代码，
+  比不改更误导
+- ⚠️ **BuildKit 对 `#main` 这种「名字没变、内容变了」的远端引用会用缓存**，
+  想拿新代码时先 `docker compose build --no-cache`，否则可能还在跑旧的那份
+- fork 了记得把 context 换成自己的仓库地址（ref 用 `#` 指定）
 
 要点：
 
@@ -596,7 +651,7 @@ pm2 save && pm2 startup      # 开机自启
 
 分成两个仓库而不是放一个仓库的两个目录，是因为两边**没有任何共享代码**：
 App 只持有一个站点地址，一行后端代码都不引用；技术栈也不搭界（Node/SQLite 与 Gradle/Java 21）。
-更实际的原因是版本号 —— 本仓库发版打的是 `v1.0.2` 这种标签，App 那边出 APK 的 CI 监听的也是 `v*`，
+更实际的原因是版本号 —— 本仓库发版打的是 `v1.0.3` 这种标签，App 那边出 APK 的 CI 监听的也是 `v*`，
 而 **Git 标签全局唯一、不分分支**，挤在一个仓库里必然撞车。
 
 对使用者而言两边完全解耦：
